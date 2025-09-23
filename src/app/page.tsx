@@ -1,103 +1,334 @@
-import Image from "next/image";
+"use client"
+import { useEffect, useRef } from 'react';
+import Link from 'next/link';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import gsap from 'gsap';
+import { ScrollTrigger } from 'gsap/ScrollTrigger';
 
-export default function Home() {
+// Register GSAP plugin
+if (typeof window !== 'undefined') {
+  gsap.registerPlugin(ScrollTrigger);
+}
+
+const LandingPage = () => {
+  const heroRef = useRef<HTMLDivElement>(null);
+  const featuresRef = useRef<HTMLDivElement>(null);
+  const testimonialsRef = useRef<HTMLDivElement>(null);
+  const ctaRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const ctx = gsap.context(() => {
+      // Hero animations
+      gsap.fromTo(
+        '.hero-title',
+        { opacity: 0, y: 50, scale: 0.9 },
+        { opacity: 1, y: 0, scale: 1, duration: 1.2, ease: 'power3.out' }
+      );
+
+      gsap.fromTo(
+        '.hero-subtitle',
+        { opacity: 0, y: 30 },
+        { opacity: 1, y: 0, duration: 1, delay: 0.3, ease: 'power2.out' }
+      );
+
+      gsap.fromTo(
+        '.hero-buttons',
+        { opacity: 0, y: 30 },
+        { opacity: 1, y: 0, duration: 1, delay: 0.6, ease: 'power2.out' }
+      );
+
+      // Floating animation for hero icons
+      gsap.to('.floating-icon', {
+        y: -15,
+        duration: 2,
+        repeat: -1,
+        yoyo: true,
+        ease: 'power2.inOut',
+        stagger: 0.3
+      });
+
+      // Features section
+      gsap.fromTo(
+        '.feature-card',
+        { opacity: 0, y: 50, rotateX: 15 },
+        {
+          opacity: 1,
+          y: 0,
+          rotateX: 0,
+          duration: 0.8,
+          ease: 'power2.out',
+          stagger: 0.2,
+          scrollTrigger: {
+            trigger: featuresRef.current,
+            start: 'top 80%',
+            end: 'bottom 20%',
+            toggleActions: 'play none none reverse'
+          }
+        }
+      );
+
+      // Testimonials
+      gsap.fromTo(
+        '.testimonial-card',
+        { opacity: 0, x: -50 },
+        {
+          opacity: 1,
+          x: 0,
+          duration: 1,
+          ease: 'power2.out',
+          stagger: 0.3,
+          scrollTrigger: {
+            trigger: testimonialsRef.current,
+            start: 'top 80%',
+            toggleActions: 'play none none reverse'
+          }
+        }
+      );
+
+      // CTA section
+      gsap.fromTo(
+        '.cta-content',
+        { opacity: 0, scale: 0.9 },
+        {
+          opacity: 1,
+          scale: 1,
+          duration: 1,
+          ease: 'power2.out',
+          scrollTrigger: {
+            trigger: ctaRef.current,
+            start: 'top 80%',
+            toggleActions: 'play none none reverse'
+          }
+        }
+      );
+    });
+
+    return () => ctx.revert();
+  }, []);
+
   return (
-    <div className="font-sans grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="font-mono list-inside list-decimal text-sm/6 text-center sm:text-left">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] font-mono font-semibold px-1 py-0.5 rounded">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
-
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+    <div className="min-h-screen bg-background font-inter">
+      {/* Navigation */}
+      <nav className="fixed top-0 w-full z-50 glass-strong border-b border-border/30">
+        <div className="container mx-auto px-6 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-2">
+              <div className="w-8 h-8 bg-gradient-to-br from-primary to-primary-glow rounded-lg flex items-center justify-center">
+                <span className="text-background font-bold text-sm">P</span>
+              </div>
+              <span className="text-xl font-bold text-gradient">PivotPulse</span>
+            </div>
+            <div className="hidden md:flex items-center space-x-8">
+              <Link href="#features" className="text-muted-foreground hover:text-primary transition-colors">Features</Link>
+              <Link href="#testimonials" className="text-muted-foreground hover:text-primary transition-colors">Testimonials</Link>
+              <Link href="/pricing" className="text-muted-foreground hover:text-primary transition-colors">Pricing</Link>
+              <Link href="/auth/sign-in">
+                <Button variant="outline" size="sm" className="btn-ghost">Sign In</Button>
+              </Link>
+            </div>
+          </div>
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
+      </nav>
+
+      {/* Hero Section */}
+      <section ref={heroRef} className="pt-32 pb-20 px-6">
+        <div className="container mx-auto text-center">
+          <div className="max-w-4xl mx-auto">
+            <h1 className="hero-title text-5xl md:text-7xl font-bold mb-6">
+              AI-Powered
+              <span className="text-gradient block">Campaign Intelligence</span>
+            </h1>
+            <p className="hero-subtitle text-xl md:text-2xl text-muted-foreground mb-8 max-w-2xl mx-auto">
+              Simulate campaign trajectories, predict performance dips, and get AI-driven pivot recommendations for your PR and content campaigns.
+            </p>
+            <div className="hero-buttons flex flex-col md:flex-row gap-4 justify-center items-center">
+              <Link href="/signin">
+                <Button size="lg" className="btn-hero">
+                  Start Free Trial
+                </Button>
+              </Link>
+              <Button variant="outline" size="lg" className="btn-ghost">
+                Watch Demo
+              </Button>
+            </div>
+          </div>
+
+          {/* Floating Icons */}
+          <div className="mt-16 grid grid-cols-3 md:grid-cols-5 gap-8 max-w-2xl mx-auto">
+            {[
+              { icon: "📊", label: "Analytics" },
+              { icon: "🤖", label: "AI Insights" },
+              { icon: "🎯", label: "Targeting" },
+              { icon: "📈", label: "Growth" },
+              { icon: "⚡", label: "Real-time" }
+            ].map((item, index) => (
+              <div key={index} className="floating-icon text-center">
+                <div className="w-16 h-16 mx-auto mb-2 glass rounded-xl flex items-center justify-center text-2xl hover-glow transition-all duration-300">
+                  {item.icon}
+                </div>
+                <span className="text-sm text-muted-foreground">{item.label}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Features Section */}
+      <section id="features" ref={featuresRef} className="py-20 px-6">
+        <div className="container mx-auto">
+          <div className="text-center mb-16">
+            <h2 className="text-4xl md:text-5xl font-bold mb-6">
+              Powerful Features for 
+              <span className="text-gradient"> Modern Agencies</span>
+            </h2>
+            <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
+              Everything you need to de-risk campaigns, extend client engagements, and demonstrate proactive value.
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {[
+              {
+                title: "Trajectory Simulation",
+                description: "AI-powered campaign forecasting with performance predictions and scenario modeling.",
+                icon: "🔮"
+              },
+              {
+                title: "Competitor Intelligence",
+                description: "Real-time competitor metrics and market trend analysis to stay ahead.",
+                icon: "🕵️"
+              },
+              {
+                title: "Pivot Recommendations",
+                description: "Smart suggestions for content tweaks, channel shifts, and optimization strategies.",
+                icon: "🎯"
+              },
+              {
+                title: "Real-time Dashboard",
+                description: "Interactive charts showing predicted vs actual metrics with live updates.",
+                icon: "📊"
+              },
+              {
+                title: "Client Collaboration",
+                description: "Transparent client portals with simplified metrics and co-editing capabilities.",
+                icon: "👥"
+              },
+              {
+                title: "Performance Alerts",
+                description: "Proactive notifications for performance dips and optimization opportunities.",
+                icon: "🚨"
+              }
+            ].map((feature, index) => (
+              <Card key={index} className="feature-card glass p-8 hover-lift hover-glow">
+                <div className="text-4xl mb-4">{feature.icon}</div>
+                <h3 className="text-xl font-semibold mb-3 text-foreground">{feature.title}</h3>
+                <p className="text-muted-foreground">{feature.description}</p>
+              </Card>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Testimonials Section */}
+      <section id="testimonials" ref={testimonialsRef} className="py-20 px-6 bg-surface/30">
+        <div className="container mx-auto">
+          <div className="text-center mb-16">
+            <h2 className="text-4xl md:text-5xl font-bold mb-6">
+              Trusted by Leading
+              <span className="text-gradient"> Agencies</span>
+            </h2>
+          </div>
+
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {[
+              {
+                name: "Sarah Chen",
+                role: "Agency Director at CreativePulse",
+                content: "PivotPulse transformed how we approach campaign planning. The AI predictions helped us avoid three major performance dips last quarter.",
+                avatar: "👩‍💼"
+              },
+              {
+                name: "Marcus Rodriguez",
+                role: "Senior Strategist at BrandFlow",
+                content: "The competitor intelligence feature is game-changing. We can now proactively adjust campaigns based on market movements.",
+                avatar: "👨‍💻"
+              },
+              {
+                name: "Emma Thompson",
+                role: "Founder of Digital Dynamics",
+                content: "Our clients love the transparency. The pivot recommendations have increased our campaign success rate by 40%.",
+                avatar: "👩‍🚀"
+              }
+            ].map((testimonial, index) => (
+              <Card key={index} className="testimonial-card glass p-8">
+                <p className="text-muted-foreground mb-6 italic">"{testimonial.content}"</p>
+                <div className="flex items-center">
+                  <div className="w-12 h-12 rounded-full bg-surface flex items-center justify-center text-2xl mr-4">
+                    {testimonial.avatar}
+                  </div>
+                  <div>
+                    <div className="font-semibold text-foreground">{testimonial.name}</div>
+                    <div className="text-sm text-muted-foreground">{testimonial.role}</div>
+                  </div>
+                </div>
+              </Card>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* CTA Section */}
+      <section ref={ctaRef} className="py-20 px-6">
+        <div className="container mx-auto text-center">
+          <div className="cta-content max-w-3xl mx-auto glass-strong p-12 rounded-3xl glow-subtle">
+            <h2 className="text-4xl md:text-5xl font-bold mb-6">
+              Ready to Transform Your
+              <span className="text-gradient"> Campaign Strategy?</span>
+            </h2>
+            <p className="text-xl text-muted-foreground mb-8">
+              Join hundreds of agencies already using AI to predict, pivot, and perform better.
+            </p>
+            <div className="flex flex-col md:flex-row gap-4 justify-center">
+              <Link href="/signin">
+                <Button size="lg" className="btn-hero">
+                  Start Your Free Trial
+                </Button>
+              </Link>
+              <Link href="/pricing">
+                <Button variant="outline" size="lg" className="btn-ghost">
+                  View Pricing
+                </Button>
+              </Link>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Footer */}
+      <footer className="py-12 px-6 border-t border-border/30">
+        <div className="container mx-auto">
+          <div className="flex flex-col md:flex-row justify-between items-center">
+            <div className="flex items-center space-x-2 mb-4 md:mb-0">
+              <div className="w-8 h-8 bg-gradient-to-br from-primary to-primary-glow rounded-lg flex items-center justify-center">
+                <span className="text-background font-bold text-sm">P</span>
+              </div>
+              <span className="text-xl font-bold text-gradient">PivotPulse</span>
+            </div>
+            <div className="flex space-x-6 text-sm text-muted-foreground">
+              <Link href="/pricing" className="hover:text-primary transition-colors">Pricing</Link>
+              <Link href="#" className="hover:text-primary transition-colors">Privacy</Link>
+              <Link href="#" className="hover:text-primary transition-colors">Terms</Link>
+              <Link href="#" className="hover:text-primary transition-colors">Support</Link>
+            </div>
+          </div>
+          <div className="mt-8 pt-8 border-t border-border/30 text-center text-sm text-muted-foreground">
+            © 2024 PivotPulse. All rights reserved.
+          </div>
+        </div>
       </footer>
     </div>
   );
-}
+};
+
+export default LandingPage;
