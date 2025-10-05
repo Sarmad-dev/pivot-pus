@@ -1,8 +1,11 @@
 /**
  * Google OAuth callback handler
+ * Completes the OAuth flow server-side to avoid middleware issues
  */
 
 import { NextRequest, NextResponse } from "next/server";
+import { exchangeCodeForTokens } from "@/lib/api/oauth/token-exchange";
+import { convexAuthNextjsToken } from "@convex-dev/auth/nextjs/server";
 
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
@@ -12,18 +15,18 @@ export async function GET(request: NextRequest) {
   const errorDescription = searchParams.get("error_description");
 
   // Log all parameters for debugging
-  console.log("[Google OAuth Callback] ========================================");
+  console.log(
+    "[Google OAuth Callback] ========================================"
+  );
   console.log("[Google OAuth Callback] Incoming request URL:", request.url);
   console.log("[Google OAuth Callback] Received parameters:", {
-    code: code ? `present (length: ${code.length}, start: ${code.substring(0, 20)}...)` : "missing",
+    code: code
+      ? `present (length: ${code.length}, start: ${code.substring(0, 20)}...)`
+      : "missing",
     state: state ? `present (length: ${state.length})` : "missing",
     error,
     errorDescription,
     allParams: Object.fromEntries(searchParams.entries()),
-  });
-  console.log("[Google OAuth Callback] Request headers:", {
-    cookie: request.headers.get("cookie") ? "present" : "missing",
-    referer: request.headers.get("referer"),
   });
 
   // Handle OAuth errors
@@ -53,18 +56,95 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  console.log("[Google OAuth Callback] Success - preparing redirect");
-  
-  // Build redirect URL with encoded parameters
-  const redirectUrl = `/campaign/create?platform=google&code=${encodeURIComponent(code)}&state=${encodeURIComponent(state)}`;
-  const fullRedirectUrl = new URL(redirectUrl, request.url);
-  
-  console.log("[Google OAuth Callback] Redirect URL:", redirectUrl);
-  console.log("[Google OAuth Callback] Full redirect URL:", fullRedirectUrl.toString());
-  console.log("[Google OAuth Callback] Code length:", code.length);
-  console.log("[Google OAuth Callback] State length:", state.length);
-  console.log("[Google OAuth Callback] ========================================");
-  
-  // Redirect to frontend - browser will preserve cookies automatically
-  return NextResponse.redirect(fullRedirectUrl);
+  try {
+    console.log("[Google OAuth Callback] Starting token exchange...");
+
+    // Parse state to get platform and organization info
+    const stateData = JSON.parse(atob(state));
+    const { platform, organizationId } = stateData;
+
+    console.log("[Google OAuth Callback] State data:", {
+      platform,
+      organizationId,
+    });
+
+    // Exchange code for tokens
+    const tokens = await exchangeCodeForTokens(platform, code);
+    console.log("[Google OAuth Callback] Token exchange successful");
+
+    // Get the current user's auth token to make Convex mutations
+    const authToken = await convexAuthNextjsToken();
+
+    if (!authToken) {
+      console.error(
+        "[Google OAuth Callback] No auth token - user not authenticated"
+      );
+      return NextResponse.redirect(
+        new URL(
+          "/auth/sign-in?error=Please sign in first before connecting platforms",
+          request.url
+        )
+      );
+    }
+
+    // Store tokens in Convex database
+    const convexUrl = process.env.NEXT_PUBLIC_CONVEX_URL;
+    if (!convexUrl) {
+      throw new Error("NEXT_PUBLIC_CONVEX_URL not configured");
+    }
+
+    const response = await fetch(`${convexUrl}/api/mutation`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${authToken}`,
+      },
+      body: JSON.stringify({
+        path: "platformConnections:storePlatformConnection",
+        args: {
+          platform,
+          organizationId,
+          accessToken: tokens.accessToken,
+          refreshToken: tokens.refreshToken,
+          expiresAt: tokens.expiresAt,
+          scope: tokens.scope,
+        },
+      }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(
+        `Failed to store platform connection: ${errorData.message || response.statusText}`
+      );
+    }
+
+    console.log(
+      "[Google OAuth Callback] Platform connection stored successfully"
+    );
+
+    // Redirect to campaign create page with success message
+    return NextResponse.redirect(
+      new URL("/campaign/create?platform=google&connected=true", request.url)
+    );
+  } catch (error) {
+    console.error(
+      "[Google OAuth Callback] Error during token exchange:",
+      error
+    );
+
+    const errorMessage =
+      error instanceof Error ? error.message : "Failed to complete OAuth flow";
+
+    return NextResponse.redirect(
+      new URL(
+        `/campaign/create?error=${encodeURIComponent(errorMessage)}`,
+        request.url
+      )
+    );
+  } finally {
+    console.log(
+      "[Google OAuth Callback] ========================================"
+    );
+  }
 }

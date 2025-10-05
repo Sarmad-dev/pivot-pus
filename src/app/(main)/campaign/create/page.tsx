@@ -23,20 +23,28 @@ const CampaignCreation = () => {
     const draftId = searchParams.get("draftId");
     const platform = searchParams.get("platform");
     const code = searchParams.get("code");
+    const connected = searchParams.get("connected");
     const error = searchParams.get("error");
 
     console.log("[CampaignCreation] URL params detected:", {
       draftId,
       platform,
       hasCode: !!code,
+      connected,
       error,
     });
 
-    
     // If OAuth callback parameters are present, switch to import tab
-    if (platform && (code || error)) {
+    if (platform && (code || connected || error)) {
       console.log("[CampaignCreation] OAuth callback detected, switching to import tab");
       setActiveTab("import");
+      
+      // Show success message if platform was connected
+      if (connected === "true") {
+        toast.success("Platform connected successfully!", {
+          description: `${platform.charAt(0).toUpperCase() + platform.slice(1)} account has been connected.`,
+        });
+      }
     } else if (draftId) {
       setSelectedDraftId(draftId);
       setActiveTab("wizard");
