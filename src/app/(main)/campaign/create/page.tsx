@@ -32,6 +32,7 @@ const CampaignCreation = () => {
       error,
     });
 
+    
     // If OAuth callback parameters are present, switch to import tab
     if (platform && (code || error)) {
       console.log("[CampaignCreation] OAuth callback detected, switching to import tab");
