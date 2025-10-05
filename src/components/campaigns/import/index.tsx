@@ -10,6 +10,7 @@ import { useSearchParams } from "next/navigation";
 import { Id } from "../../../../convex/_generated/dataModel";
 import { FacebookCampaignImport } from "../facebook-campaign-import";
 import { GoogleCampaignImport } from "../google-campaign-import";
+import { useOAuthDataProcessor } from "@/hooks/useOAuthDataProcessor";
 import {
   Card,
   CardContent,
@@ -45,18 +46,25 @@ export function CampaignImport({
     isProcessing,
     error: callbackError,
   } = useOAuthCallback();
+  
+  // Process OAuth data if present
+  const { isProcessing: isProcessingOAuth, error: oauthProcessingError } = useOAuthDataProcessor();
 
   // Handle OAuth callback
   useEffect(() => {
     const code = searchParams.get("code");
     const state = searchParams.get("state");
     const platform = searchParams.get("platform");
+    const connected = searchParams.get("connected");
+    const oauthData = searchParams.get("oauth_data");
     const error = searchParams.get("error");
 
     console.log("[CampaignImport] URL params:", {
       hasCode: !!code,
       hasState: !!state,
       platform,
+      connected,
+      hasOAuthData: !!oauthData,
       error,
       allParams: Array.from(searchParams.entries()),
     });
@@ -67,39 +75,40 @@ export function CampaignImport({
       return;
     }
 
-    if (code && state && platform) {
-      // Process OAuth callback
-      console.log("[CampaignImport] Processing OAuth callback");
+    if (connected === "true" && platform) {
+      // OAuth completed successfully (server-side or processed by useOAuthDataProcessor)
+      console.log("[CampaignImport] OAuth completed successfully, showing platform UI");
+      setSelectedPlatform(platform as Platform);
+    } else if (oauthData && platform) {
+      // OAuth data present - will be processed by useOAuthDataProcessor hook
+      console.log("[CampaignImport] OAuth data detected, will be processed by useOAuthDataProcessor");
+      setSelectedPlatform(platform as Platform);
+    } else if (code && state && platform) {
+      // Legacy: Process OAuth callback (fallback)
+      console.log("[CampaignImport] Processing OAuth callback (legacy)");
       handleCallback(code, state).then((result) => {
         if (result.success) {
           console.log("[CampaignImport] OAuth callback successful");
-          // Set the platform to show the import UI
           setSelectedPlatform(platform as Platform);
 
-          // Clean up URL parameters
           const url = new URL(window.location.href);
           url.searchParams.delete("code");
           url.searchParams.delete("state");
           url.searchParams.delete("platform");
           window.history.replaceState({}, "", url.toString());
         } else {
-          console.error(
-            "[CampaignImport] OAuth callback failed:",
-            result.error
-          );
+          console.error("[CampaignImport] OAuth callback failed:", result.error);
         }
       });
-    } else if (platform && !code) {
-      // Platform selected but no code (direct navigation)
-      console.log(
-        "[CampaignImport] Platform selected without code, showing selection"
-      );
+    } else if (platform && !code && !oauthData && !connected) {
+      // Platform selected but no OAuth data (direct navigation)
+      console.log("[CampaignImport] Platform selected without OAuth data, showing selection");
       setSelectedPlatform(platform as Platform);
     }
   }, [searchParams, handleCallback]);
 
-  // Show processing state during OAuth callback
-  if (isProcessing) {
+  // Show processing state during OAuth callback or OAuth data processing
+  if (isProcessing || isProcessingOAuth) {
     return (
       <Card>
         <CardHeader>
@@ -107,14 +116,16 @@ export function CampaignImport({
         </CardHeader>
         <CardContent className="flex flex-col items-center justify-center py-8">
           <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
-          <p className="text-muted-foreground">Completing authentication...</p>
+          <p className="text-muted-foreground">
+            {isProcessingOAuth ? "Storing platform connection..." : "Completing authentication..."}
+          </p>
         </CardContent>
       </Card>
     );
   }
 
-  // Show callback error
-  if (callbackError) {
+  // Show callback error or OAuth processing error
+  if (callbackError || oauthProcessingError) {
     return (
       <Card>
         <CardHeader>
@@ -126,7 +137,7 @@ export function CampaignImport({
         <CardContent className="space-y-4">
           <Alert variant="destructive">
             <AlertCircle className="h-4 w-4" />
-            <AlertDescription>{callbackError}</AlertDescription>
+            <AlertDescription>{callbackError || oauthProcessingError}</AlertDescription>
           </Alert>
           <div className="flex gap-2">
             <Button onClick={() => window.location.reload()}>Try Again</Button>

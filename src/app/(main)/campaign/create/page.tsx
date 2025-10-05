@@ -24,6 +24,7 @@ const CampaignCreation = () => {
     const platform = searchParams.get("platform");
     const code = searchParams.get("code");
     const connected = searchParams.get("connected");
+    const oauthData = searchParams.get("oauth_data");
     const error = searchParams.get("error");
 
     console.log("[CampaignCreation] URL params detected:", {
@@ -31,11 +32,12 @@ const CampaignCreation = () => {
       platform,
       hasCode: !!code,
       connected,
+      hasOAuthData: !!oauthData,
       error,
     });
 
     // If OAuth callback parameters are present, switch to import tab
-    if (platform && (code || connected || error)) {
+    if (platform && (code || connected || oauthData || error)) {
       console.log("[CampaignCreation] OAuth callback detected, switching to import tab");
       setActiveTab("import");
       
