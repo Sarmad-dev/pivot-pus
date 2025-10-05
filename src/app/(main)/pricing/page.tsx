@@ -130,221 +130,221 @@ const Pricing = () => {
                 Choose Your
                 <span className="text-gradient block">Intelligence Level</span>
               </h1>
-            <p className="text-xl text-muted-foreground max-w-3xl mx-auto mb-8">
-              Transparent pricing for agencies of all sizes. Start with our free
-              trial and scale as you grow.
-            </p>
+              <p className="text-xl text-muted-foreground max-w-3xl mx-auto mb-8">
+                Transparent pricing for agencies of all sizes. Start with our
+                free trial and scale as you grow.
+              </p>
 
-            {/* Billing Toggle */}
-            <div className="flex items-center justify-center space-x-4">
-              <Label
-                htmlFor="billing-toggle"
-                className={`${
-                  !isAnnual ? "text-foreground" : "text-muted-foreground"
-                }`}
-              >
-                Monthly
-              </Label>
-              <Switch
-                id="billing-toggle"
-                checked={isAnnual}
-                onCheckedChange={setIsAnnual}
-              />
-              <Label
-                htmlFor="billing-toggle"
-                className={`${
-                  isAnnual ? "text-foreground" : "text-muted-foreground"
-                }`}
-              >
-                Annual
-              </Label>
-              <Badge
-                variant="secondary"
-                className="bg-success/20 text-success ml-2"
-              >
-                Save 20%
-              </Badge>
+              {/* Billing Toggle */}
+              <div className="flex items-center justify-center space-x-4">
+                <Label
+                  htmlFor="billing-toggle"
+                  className={`${
+                    !isAnnual ? "text-foreground" : "text-muted-foreground"
+                  }`}
+                >
+                  Monthly
+                </Label>
+                <Switch
+                  id="billing-toggle"
+                  checked={isAnnual}
+                  onCheckedChange={setIsAnnual}
+                />
+                <Label
+                  htmlFor="billing-toggle"
+                  className={`${
+                    isAnnual ? "text-foreground" : "text-muted-foreground"
+                  }`}
+                >
+                  Annual
+                </Label>
+                <Badge
+                  variant="secondary"
+                  className="bg-success/20 text-success ml-2"
+                >
+                  Save 20%
+                </Badge>
+              </div>
             </div>
-          </div>
 
-          {/* Pricing Cards */}
-          <div className="grid md:grid-cols-3 gap-8 mb-20">
-            {plans.map((plan, index) => (
-              <Card
-                key={index}
-                className={`glass hover-lift relative ${
-                  plan.popular ? "border-primary/50 glow-subtle" : ""
-                }`}
-              >
-                {plan.popular && (
-                  <div className="absolute -top-4 inset-x-0 flex justify-center">
-                    <Badge className="bg-primary text-primary-foreground px-6 py-1">
-                      Most Popular
-                    </Badge>
-                  </div>
-                )}
-
-                <CardHeader className="text-center pb-8">
-                  <CardTitle className="text-2xl font-bold text-foreground">
-                    {plan.name}
-                  </CardTitle>
-                  <CardDescription className="text-muted-foreground">
-                    {plan.description}
-                  </CardDescription>
-
-                  <div className="mt-6">
-                    {typeof plan.monthlyPrice === "number" ? (
-                      <div>
-                        <div className="text-5xl font-bold text-foreground">
-                          ${isAnnual ? plan.annualPrice : plan.monthlyPrice}
-                        </div>
-                        <div className="text-muted-foreground">
-                          per month{" "}
-                          {isAnnual && (
-                            <span className="text-success">
-                              (billed annually)
-                            </span>
-                          )}
-                        </div>
-                        {isAnnual && typeof plan.annualPrice === "number" && (
-                          <div className="text-sm text-muted-foreground mt-1">
-                            <span className="line-through">
-                              ${plan.monthlyPrice}/mo
-                            </span>
-                            <span className="text-success ml-1">
-                              Save $
-                              {(plan.monthlyPrice - plan.annualPrice) * 12}/year
-                            </span>
-                          </div>
-                        )}
-                      </div>
-                    ) : (
-                      <div>
-                        <div className="text-5xl font-bold text-foreground">
-                          {plan.monthlyPrice}
-                        </div>
-                        <div className="text-muted-foreground">
-                          Contact for pricing
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </CardHeader>
-
-                <CardContent className="space-y-6">
-                  <div className="space-y-3">
-                    {plan.features.map((feature, idx) => (
-                      <div key={idx} className="flex items-start space-x-3">
-                        <div className="w-5 h-5 rounded-full bg-success/20 flex items-center justify-center flex-shrink-0 mt-0.5">
-                          <span className="text-success text-xs">✓</span>
-                        </div>
-                        <span className="text-sm text-foreground">
-                          {feature}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-
-                  <Link href="/auth/sign-in" className="block">
-                    <Button
-                      className={`w-full ${
-                        plan.popular ? "btn-hero" : "btn-ghost"
-                      }`}
-                    >
-                      {plan.cta}
-                    </Button>
-                  </Link>
-
-                  {plan.limitations.length > 0 && (
-                    <div className="text-xs text-muted-foreground">
-                      <div className="font-medium mb-1">Limitations:</div>
-                      {plan.limitations.map((limitation, idx) => (
-                        <div key={idx}>• {limitation}</div>
-                      ))}
+            {/* Pricing Cards */}
+            <div className="grid md:grid-cols-3 gap-8 mb-20">
+              {plans.map((plan, index) => (
+                <Card
+                  key={index}
+                  className={`glass hover-lift relative ${
+                    plan.popular ? "border-primary/50 glow-subtle" : ""
+                  }`}
+                >
+                  {plan.popular && (
+                    <div className="absolute -top-4 inset-x-0 flex justify-center">
+                      <Badge className="bg-primary text-primary-foreground px-6 py-1">
+                        Most Popular
+                      </Badge>
                     </div>
                   )}
-                </CardContent>
-              </Card>
-            ))}
-          </div>
 
-          {/* Enterprise CTA */}
-          <div className="text-center mb-20">
-            <Card className="glass-strong p-12 max-w-4xl mx-auto">
-              <div className="text-center">
-                <h2 className="text-3xl font-bold text-foreground mb-4">
-                  Need Something Custom?
-                </h2>
-                <p className="text-xl text-muted-foreground mb-6">
-                  Enterprise solutions with custom AI training, dedicated
-                  infrastructure, and white-glove support.
-                </p>
-                <div className="flex flex-col md:flex-row gap-4 justify-center">
-                  <Link href="/auth/sign-in">
-                    <Button className="btn-hero">Schedule Demo</Button>
-                  </Link>
-                  <Button variant="outline" className="btn-ghost">
-                    Contact Sales
-                  </Button>
-                </div>
-              </div>
-            </Card>
-          </div>
+                  <CardHeader className="text-center pb-8">
+                    <CardTitle className="text-2xl font-bold text-foreground">
+                      {plan.name}
+                    </CardTitle>
+                    <CardDescription className="text-muted-foreground">
+                      {plan.description}
+                    </CardDescription>
 
-          {/* FAQ Section */}
-          <div className="max-w-4xl mx-auto">
-            <div className="text-center mb-12">
-              <h2 className="text-4xl font-bold text-foreground mb-4">
-                Frequently Asked Questions
-              </h2>
-              <p className="text-xl text-muted-foreground">
-                Everything you need to know about PivotPulse pricing and
-                features.
-              </p>
-            </div>
+                    <div className="mt-6">
+                      {typeof plan.monthlyPrice === "number" ? (
+                        <div>
+                          <div className="text-5xl font-bold text-foreground">
+                            ${isAnnual ? plan.annualPrice : plan.monthlyPrice}
+                          </div>
+                          <div className="text-muted-foreground">
+                            per month{" "}
+                            {isAnnual && (
+                              <span className="text-success">
+                                (billed annually)
+                              </span>
+                            )}
+                          </div>
+                          {isAnnual && typeof plan.annualPrice === "number" && (
+                            <div className="text-sm text-muted-foreground mt-1">
+                              <span className="line-through">
+                                ${plan.monthlyPrice}/mo
+                              </span>
+                              <span className="text-success ml-1">
+                                Save $
+                                {(plan.monthlyPrice - plan.annualPrice) * 12}
+                                /year
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <div>
+                          <div className="text-5xl font-bold text-foreground">
+                            {plan.monthlyPrice}
+                          </div>
+                          <div className="text-muted-foreground">
+                            Contact for pricing
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </CardHeader>
 
-            <div className="space-y-6">
-              {faqs.map((faq, index) => (
-                <Card key={index} className="glass">
-                  <CardContent className="p-6">
-                    <h3 className="text-lg font-semibold text-foreground mb-3">
-                      {faq.question}
-                    </h3>
-                    <p className="text-muted-foreground leading-relaxed">
-                      {faq.answer}
-                    </p>
+                  <CardContent className="space-y-6">
+                    <div className="space-y-3">
+                      {plan.features.map((feature, idx) => (
+                        <div key={idx} className="flex items-start space-x-3">
+                          <div className="w-5 h-5 rounded-full bg-success/20 flex items-center justify-center flex-shrink-0 mt-0.5">
+                            <span className="text-success text-xs">✓</span>
+                          </div>
+                          <span className="text-sm text-foreground">
+                            {feature}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+
+                    <Link href="/auth/sign-in" className="block">
+                      <Button
+                        className={`w-full ${
+                          plan.popular ? "btn-hero" : "btn-ghost"
+                        }`}
+                      >
+                        {plan.cta}
+                      </Button>
+                    </Link>
+
+                    {plan.limitations.length > 0 && (
+                      <div className="text-xs text-muted-foreground">
+                        <div className="font-medium mb-1">Limitations:</div>
+                        {plan.limitations.map((limitation, idx) => (
+                          <div key={idx}>• {limitation}</div>
+                        ))}
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
               ))}
             </div>
-          </div>
 
-          {/* Final CTA */}
-          <div className="text-center mt-20">
-            <Card className="glass p-8 max-w-2xl mx-auto">
-              <CardContent className="text-center">
-                <h3 className="text-2xl font-bold text-foreground mb-4">
-                  Ready to Transform Your Campaign Strategy?
-                </h3>
-                <p className="text-muted-foreground mb-6">
-                  Join hundreds of agencies already using AI to predict, pivot,
-                  and perform better.
-                </p>
-                <div className="flex flex-col md:flex-row gap-4 justify-center">
-                  <Link href="/auth/sign-in">
-                    <Button className="btn-hero">Start Free Trial</Button>
-                  </Link>
-                  <Button variant="outline" className="btn-ghost">
-                    See Demo
-                  </Button>
+            {/* Enterprise CTA */}
+            <div className="text-center mb-20">
+              <Card className="glass-strong p-12 max-w-4xl mx-auto">
+                <div className="text-center">
+                  <h2 className="text-3xl font-bold text-foreground mb-4">
+                    Need Something Custom?
+                  </h2>
+                  <p className="text-xl text-muted-foreground mb-6">
+                    Enterprise solutions with custom AI training, dedicated
+                    infrastructure, and white-glove support.
+                  </p>
+                  <div className="flex flex-col md:flex-row gap-4 justify-center">
+                    <Link href="/auth/sign-in">
+                      <Button className="btn-hero">Schedule Demo</Button>
+                    </Link>
+                    <Button variant="outline" className="btn-ghost">
+                      Contact Sales
+                    </Button>
+                  </div>
                 </div>
-                <p className="text-sm text-muted-foreground mt-4">
-                  No credit card required • 14-day free trial • Cancel anytime
+              </Card>
+            </div>
+
+            {/* FAQ Section */}
+            <div className="max-w-4xl mx-auto">
+              <div className="text-center mb-12">
+                <h2 className="text-4xl font-bold text-foreground mb-4">
+                  Frequently Asked Questions
+                </h2>
+                <p className="text-xl text-muted-foreground">
+                  Everything you need to know about PivotPulse pricing and
+                  features.
                 </p>
-              </CardContent>
-            </Card>
-          </div>
-        </div>
+              </div>
+
+              <div className="space-y-6">
+                {faqs.map((faq, index) => (
+                  <Card key={index} className="glass">
+                    <CardContent className="p-6">
+                      <h3 className="text-lg font-semibold text-foreground mb-3">
+                        {faq.question}
+                      </h3>
+                      <p className="text-muted-foreground leading-relaxed">
+                        {faq.answer}
+                      </p>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </div>
+
+            {/* Final CTA */}
+            <div className="text-center mt-20">
+              <Card className="glass p-8 max-w-2xl mx-auto">
+                <CardContent className="text-center">
+                  <h3 className="text-2xl font-bold text-foreground mb-4">
+                    Ready to Transform Your Campaign Strategy?
+                  </h3>
+                  <p className="text-muted-foreground mb-6">
+                    Join hundreds of agencies already using AI to predict,
+                    pivot, and perform better.
+                  </p>
+                  <div className="flex flex-col md:flex-row gap-4 justify-center">
+                    <Link href="/auth/sign-in">
+                      <Button className="btn-hero">Start Free Trial</Button>
+                    </Link>
+                    <Button variant="outline" className="btn-ghost">
+                      See Demo
+                    </Button>
+                  </div>
+                  <p className="text-sm text-muted-foreground mt-4">
+                    No credit card required • 14-day free trial • Cancel anytime
+                  </p>
+                </CardContent>
+              </Card>
+            </div>
           </div>
         </div>
       </div>
