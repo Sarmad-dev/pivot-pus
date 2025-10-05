@@ -1,4 +1,6 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap");
+
+@custom-variant dark (&:is(.dark *));
 
 @tailwind base;
 @tailwind components;
@@ -11,59 +13,75 @@
     /* PivotPulse Dark Theme - Main Colors */
     --background: 215 28% 17%; /* #1F2A44 */
     --foreground: 220 17% 85%; /* #D1D5DB */
-    
+
     --surface: 210 20% 22%; /* #2D3748 */
     --surface-foreground: 220 17% 85%;
-    
+
     --card: 210 20% 22%;
     --card-foreground: 220 17% 85%;
-    
+
     --popover: 210 20% 22%;
     --popover-foreground: 220 17% 85%;
-    
+
     /* Primary Blue Accent */
     --primary: 213 93% 68%; /* #60A5FA */
     --primary-foreground: 215 28% 17%;
     --primary-glow: 213 93% 78%;
-    
+
     /* Secondary Gray Tones */
     --secondary: 220 13% 42%; /* #6B7280 */
     --secondary-foreground: 220 17% 95%;
-    
+
     --muted: 220 13% 42%;
     --muted-foreground: 220 9% 59%;
-    
+
     --accent: 213 93% 68%;
     --accent-foreground: 215 28% 17%;
-    
+
     --destructive: 0 84% 60%;
     --destructive-foreground: 220 17% 95%;
-    
+
     --success: 142 76% 36%;
     --success-foreground: 220 17% 95%;
-    
+
     --warning: 38 92% 50%;
     --warning-foreground: 215 28% 17%;
-    
+
     --border: 220 13% 35%;
     --input: 220 13% 35%;
     --ring: 213 93% 68%;
-    
+
     /* Gradients */
-    --gradient-cosmic: linear-gradient(135deg, hsl(215 28% 17%), hsl(220 20% 20%));
-    --gradient-primary: linear-gradient(135deg, hsl(213 93% 68%), hsl(213 93% 78%));
-    --gradient-surface: linear-gradient(135deg, hsl(210 20% 22%), hsl(215 20% 25%));
-    --gradient-glow: radial-gradient(circle at 50% 50%, hsl(213 93% 68% / 0.3), transparent 70%);
-    
+    --gradient-cosmic: linear-gradient(
+      135deg,
+      hsl(215 28% 17%),
+      hsl(220 20% 20%)
+    );
+    --gradient-primary: linear-gradient(
+      135deg,
+      hsl(213 93% 68%),
+      hsl(213 93% 78%)
+    );
+    --gradient-surface: linear-gradient(
+      135deg,
+      hsl(210 20% 22%),
+      hsl(215 20% 25%)
+    );
+    --gradient-glow: radial-gradient(
+      circle at 50% 50%,
+      hsl(213 93% 68% / 0.3),
+      transparent 70%
+    );
+
     /* Shadows */
     --shadow-elegant: 0 10px 30px -10px hsl(215 28% 10% / 0.5);
     --shadow-glow: 0 0 40px hsl(213 93% 68% / 0.3);
     --shadow-surface: 0 4px 20px -4px hsl(215 28% 10% / 0.4);
-    
+
     /* Animations */
     --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     --transition-bounce: all 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
-    
+
     --radius: 0.75rem;
   }
 }
@@ -72,26 +90,26 @@
   * {
     @apply border-border;
   }
-  
+
   html {
     @apply scroll-smooth;
   }
-  
+
   body {
     @apply bg-background text-foreground font-inter antialiased;
     background: var(--gradient-cosmic);
     min-height: 100vh;
   }
-  
+
   /* Custom scrollbar */
   ::-webkit-scrollbar {
     width: 8px;
   }
-  
+
   ::-webkit-scrollbar-track {
     @apply bg-surface;
   }
-  
+
   ::-webkit-scrollbar-thumb {
     @apply bg-secondary rounded-full hover:bg-primary transition-colors;
   }
@@ -102,59 +120,78 @@
   .glass {
     @apply bg-surface/20 backdrop-blur-xl border border-border/30;
   }
-  
+
   .glass-strong {
     @apply bg-surface/40 backdrop-blur-2xl border border-border/50;
   }
-  
+
+  /* Sidebar specific enhancements */
+  .sidebar-menu-button {
+    @apply transition-all duration-200 ease-in-out;
+  }
+
+  .sidebar-menu-button:hover {
+    @apply bg-sidebar-accent/80 text-sidebar-accent-foreground;
+    box-shadow: 0 2px 8px hsl(213 93% 68% / 0.1);
+  }
+
+  .sidebar-menu-button[data-active="true"] {
+    @apply bg-primary/20 text-primary border-l-2 border-primary;
+    box-shadow: 0 2px 12px hsl(213 93% 68% / 0.2);
+  }
+
+  .sidebar-menu-button[data-active="true"]:hover {
+    @apply bg-primary/30;
+  }
+
   /* Glow effects */
   .glow-primary {
     box-shadow: var(--shadow-glow);
   }
-  
+
   .glow-subtle {
     box-shadow: 0 0 20px hsl(213 93% 68% / 0.1);
   }
-  
+
   /* Data visualization theme */
   .chart-container {
     @apply glass p-6 rounded-2xl;
   }
-  
+
   /* Interactive hover states */
   .hover-lift {
     @apply transition-all duration-300 hover:translate-y-[-2px];
     box-shadow: 0 4px 20px -4px hsl(215 28% 10% / 0.4);
   }
-  
+
   .hover-lift:hover {
     box-shadow: var(--shadow-elegant);
   }
-  
+
   .hover-glow {
     @apply transition-all duration-300 hover:glow-primary;
   }
-  
+
   /* Text gradients */
   .text-gradient {
     @apply bg-gradient-to-r from-primary to-primary-glow bg-clip-text text-transparent;
   }
-  
+
   .text-gradient-subtle {
     @apply bg-gradient-to-r from-foreground to-muted-foreground bg-clip-text text-transparent;
   }
-  
+
   /* Button variants */
   .btn-hero {
     @apply bg-primary text-primary-foreground hover:bg-primary-glow px-8 py-4 rounded-xl font-semibold;
     @apply hover-lift glow-subtle hover:glow-primary transition-all duration-300;
   }
-  
+
   .btn-ghost {
     @apply bg-transparent border border-border text-foreground hover:bg-surface hover:border-primary;
     @apply px-6 py-3 rounded-lg font-medium transition-all duration-300;
   }
-  
+
   .btn-minimal {
     @apply bg-secondary/20 text-secondary-foreground hover:bg-secondary/30 hover:text-primary;
     @apply px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300;
@@ -166,22 +203,77 @@
   .animate-float {
     animation: float 6s ease-in-out infinite;
   }
-  
+
   .animate-pulse-slow {
     animation: pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
   }
-  
+
   .animate-glow {
     animation: glow 2s ease-in-out infinite alternate;
   }
-  
+
   @keyframes float {
-    0%, 100% { transform: translateY(0px); }
-    50% { transform: translateY(-10px); }
+    0%,
+    100% {
+      transform: translateY(0px);
+    }
+    50% {
+      transform: translateY(-10px);
+    }
   }
-  
+
   @keyframes glow {
-    from { box-shadow: 0 0 20px hsl(213 93% 68% / 0.2); }
-    to { box-shadow: 0 0 30px hsl(213 93% 68% / 0.4), 0 0 40px hsl(213 93% 68% / 0.1); }
+    from {
+      box-shadow: 0 0 20px hsl(213 93% 68% / 0.2);
+    }
+    to {
+      box-shadow:
+        0 0 30px hsl(213 93% 68% / 0.4),
+        0 0 40px hsl(213 93% 68% / 0.1);
+    }
+  }
+}
+
+:root {
+  /* Sidebar variables aligned with PivotPulse dark theme */
+  --sidebar: 210 20% 22%; /* Same as --surface */
+  --sidebar-foreground: 220 17% 85%; /* Same as --foreground */
+  --sidebar-primary: 213 93% 68%; /* Same as --primary */
+  --sidebar-primary-foreground: 215 28% 17%; /* Same as --background */
+  --sidebar-accent: 220 13% 35%; /* Slightly lighter than surface for hover */
+  --sidebar-accent-foreground: 220 17% 95%; /* Brighter text on hover */
+  --sidebar-border: 220 13% 35%; /* Same as --border */
+  --sidebar-ring: 213 93% 68%; /* Same as --primary for focus rings */
+}
+
+.dark {
+  /* Dark mode uses the same values since we're already dark-themed */
+  --sidebar: 210 20% 22%;
+  --sidebar-foreground: 220 17% 85%;
+  --sidebar-primary: 213 93% 68%;
+  --sidebar-primary-foreground: 215 28% 17%;
+  --sidebar-accent: 220 13% 35%;
+  --sidebar-accent-foreground: 220 17% 95%;
+  --sidebar-border: 220 13% 35%;
+  --sidebar-ring: 213 93% 68%;
+}
+
+@theme inline {
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
   }
 }

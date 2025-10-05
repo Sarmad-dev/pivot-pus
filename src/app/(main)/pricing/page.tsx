@@ -120,44 +120,16 @@ const Pricing = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-background font-inter">
-      {/* Navigation */}
-      <nav className="border-b border-border/30 glass-strong">
-        <div className="px-6 py-4">
-          <div className="flex items-center justify-between">
-            <Link href="/" className="flex items-center space-x-2">
-              <div className="w-8 h-8 bg-gradient-to-br from-primary to-primary-glow rounded-lg flex items-center justify-center">
-                <span className="text-background font-bold text-sm">P</span>
-              </div>
-              <span className="text-xl font-bold text-gradient">
-                PivotPulse
-              </span>
-            </Link>
-            <div className="flex items-center space-x-4">
-              <Link
-                href="/"
-                className="text-muted-foreground hover:text-primary transition-colors"
-              >
-                Home
-              </Link>
-              <Link href="/auth/sign-in">
-                <Button variant="outline" className="btn-ghost">
-                  Sign In
-                </Button>
-              </Link>
-            </div>
-          </div>
-        </div>
-      </nav>
-
-      <div className="py-20 px-6">
-        <div className="max-w-7xl mx-auto">
-          {/* Header */}
-          <div className="text-center mb-16">
-            <h1 className="text-5xl md:text-6xl font-bold mb-6">
-              Choose Your
-              <span className="text-gradient block">Intelligence Level</span>
-            </h1>
+    <div className="flex flex-col h-full">
+      <div className="flex-1 overflow-auto">
+        <div className="py-20 px-6">
+          <div className="max-w-7xl mx-auto">
+            {/* Header */}
+            <div className="text-center mb-16">
+              <h1 className="text-5xl md:text-6xl font-bold mb-6">
+                Choose Your
+                <span className="text-gradient block">Intelligence Level</span>
+              </h1>
             <p className="text-xl text-muted-foreground max-w-3xl mx-auto mb-8">
               Transparent pricing for agencies of all sizes. Start with our free
               trial and scale as you grow.
@@ -371,6 +343,8 @@ const Pricing = () => {
                 </p>
               </CardContent>
             </Card>
+          </div>
+        </div>
           </div>
         </div>
       </div>

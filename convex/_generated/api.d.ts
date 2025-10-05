@@ -13,6 +13,22 @@ import type {
   FilterApi,
   FunctionReference,
 } from "convex/server";
+import type * as auth from "../auth.js";
+import type * as auth_helpers from "../auth_helpers.js";
+import type * as campaigns_cleanup from "../campaigns/cleanup.js";
+import type * as campaigns_helpers from "../campaigns/helpers.js";
+import type * as campaigns_index from "../campaigns/index.js";
+import type * as campaigns_mutations from "../campaigns/mutations.js";
+import type * as campaigns_queries from "../campaigns/queries.js";
+import type * as campaigns_validation from "../campaigns/validation.js";
+import type * as campaigns_verify from "../campaigns/verify.js";
+import type * as crons from "../crons.js";
+import type * as http from "../http.js";
+import type * as lib_encryption from "../lib/encryption.js";
+import type * as migrations from "../migrations.js";
+import type * as organizations from "../organizations.js";
+import type * as platformConnections from "../platformConnections.js";
+import type * as users from "../users.js";
 
 /**
  * A utility for referencing Convex functions in your app's API.
@@ -22,7 +38,24 @@ import type {
  * const myFunctionReference = api.myModule.myFunction;
  * ```
  */
-declare const fullApi: ApiFromModules<{}>;
+declare const fullApi: ApiFromModules<{
+  auth: typeof auth;
+  auth_helpers: typeof auth_helpers;
+  "campaigns/cleanup": typeof campaigns_cleanup;
+  "campaigns/helpers": typeof campaigns_helpers;
+  "campaigns/index": typeof campaigns_index;
+  "campaigns/mutations": typeof campaigns_mutations;
+  "campaigns/queries": typeof campaigns_queries;
+  "campaigns/validation": typeof campaigns_validation;
+  "campaigns/verify": typeof campaigns_verify;
+  crons: typeof crons;
+  http: typeof http;
+  "lib/encryption": typeof lib_encryption;
+  migrations: typeof migrations;
+  organizations: typeof organizations;
+  platformConnections: typeof platformConnections;
+  users: typeof users;
+}>;
 export declare const api: FilterApi<
   typeof fullApi,
   FunctionReference<any, "public">

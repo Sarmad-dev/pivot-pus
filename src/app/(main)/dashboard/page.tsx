@@ -10,7 +10,11 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useQuery } from "convex/react";
+import { api } from "../../../../convex/_generated/api";
+
+import { CompactDraftManager } from "@/components/campaigns/draft-manager";
+import { useOrganization } from "@/contexts/organization-context";
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -34,7 +38,9 @@ ChartJS.register(
 );
 
 const Dashboard = () => {
+  const { currentOrganization } = useOrganization();
   const [currentTime, setCurrentTime] = useState(new Date());
+  const invitations = useQuery(api.users.getUserInvitations);
 
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
@@ -139,81 +145,52 @@ const Dashboard = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-background font-inter">
-      {/* Navigation */}
-      <nav className="border-b border-border/30 glass-strong">
-        <div className="px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-8">
-              <Link href="/" className="flex items-center space-x-2">
-                <div className="w-8 h-8 bg-gradient-to-br from-primary to-primary-glow rounded-lg flex items-center justify-center">
-                  <span className="text-background font-bold text-sm">P</span>
-                </div>
-                <span className="text-xl font-bold text-gradient">
-                  PivotPulse
-                </span>
-              </Link>
-              <div className="hidden md:flex space-x-6">
-                <Link href="/dashboard" className="text-primary font-medium">
-                  Dashboard
-                </Link>
-                <Link
-                  href="/campaigns/create"
-                  className="text-muted-foreground hover:text-primary transition-colors"
-                >
-                  Campaigns
-                </Link>
-                <Link
-                  href="/collaboration"
-                  className="text-muted-foreground hover:text-primary transition-colors"
-                >
-                  Collaboration
-                </Link>
-                <Link
-                  href="/admin-panel"
-                  className="text-muted-foreground hover:text-primary transition-colors"
-                >
-                  Admin
-                </Link>
+    <div className="flex flex-col h-full">
+      <div className="flex-1 overflow-auto">
+        <div className="p-6">
+          <div className="max-w-7xl mx-auto">
+            {/* Header */}
+            <div className="mb-8">
+              <h1 className="text-3xl font-bold text-foreground mb-2">
+                Campaign Intelligence Dashboard
+              </h1>
+              <p className="text-muted-foreground">
+                Real-time insights and AI-powered predictions for your campaigns
+              </p>
+              <div className="text-sm text-muted-foreground mt-2">
+                Last updated: {currentTime.toLocaleTimeString()}
               </div>
             </div>
-            <div className="flex items-center space-x-4">
-              <Link href="/notifications">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="btn-minimal relative"
-                >
-                  🔔
-                  <span className="absolute -top-1 -right-1 w-3 h-3 bg-warning rounded-full text-xs"></span>
-                </Button>
-              </Link>
-              <Link href="/profile">
-                <Button variant="ghost" size="sm" className="btn-minimal">
-                  👤 Profile
-                </Button>
-              </Link>
-            </div>
-          </div>
-        </div>
-      </nav>
 
-      <div className="p-6">
-        <div className="max-w-7xl mx-auto">
-          {/* Header */}
-          <div className="mb-8">
-            <h1 className="text-3xl font-bold text-foreground mb-2">
-              Campaign Intelligence Dashboard
-            </h1>
-            <p className="text-muted-foreground">
-              Real-time insights and AI-powered predictions for your campaigns
-            </p>
-            <div className="text-sm text-muted-foreground mt-2">
-              Last updated: {currentTime.toLocaleTimeString()}
-            </div>
-          </div>
+            {/* Pending Invitations Banner */}
+            {invitations && invitations.length > 0 && (
+              <Card className="glass mb-6 border-primary/50">
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center">
+                        <span className="text-xl">✉️</span>
+                      </div>
+                      <div>
+                        <h3 className="font-semibold text-foreground">
+                          You have {invitations.length} pending organization invitation{invitations.length > 1 ? 's' : ''}
+                        </h3>
+                        <p className="text-sm text-muted-foreground">
+                          Review and accept invitations to join organizations
+                        </p>
+                      </div>
+                    </div>
+                    <Link href="/settings">
+                      <Button size="sm" className="btn-hero">
+                        View Invitations
+                      </Button>
+                    </Link>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
 
-          {/* Quick Stats */}
+            {/* Quick Stats */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
             <Card className="glass hover-lift">
               <CardContent className="p-6">
@@ -366,7 +343,7 @@ const Dashboard = () => {
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">
-                  <Link href="/campaigns/create">
+                  <Link href="/campaign/create">
                     <Button className="w-full btn-hero">+ New Campaign</Button>
                   </Link>
                   <Link href="/collaboration">
@@ -379,6 +356,17 @@ const Dashboard = () => {
                       Client View
                     </Button>
                   </Link>
+                </CardContent>
+              </Card>
+
+              <Card className="glass">
+                <CardContent className="p-4">
+                  <CompactDraftManager
+                    organizationId={currentOrganization?._id}
+                    onSelectDraft={(draftId) => {
+                      window.location.href = `/campaign/create?draftId=${draftId}`;
+                    }}
+                  />
                 </CardContent>
               </Card>
             </div>
@@ -449,6 +437,7 @@ const Dashboard = () => {
                 </div>
               </CardContent>
             </Card>
+          </div>
           </div>
         </div>
       </div>
