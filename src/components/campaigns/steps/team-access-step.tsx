@@ -113,43 +113,15 @@ export function TeamAccessStep({ className }: TeamAccessStepProps) {
   const { currentOrganization, isLoading: orgLoading } = useOrganization();
   const organizationId = currentOrganization?._id;
 
-  // Show loading state if we're still loading user or organization data
-  if (userLoading || orgLoading) {
-    return (
-      <div className={cn("space-y-6", className)}>
-        <div className="flex items-center justify-center min-h-[400px]">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-            <p className="text-muted-foreground">Loading team access settings...</p>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // Show error if no organization is available
-  if (!currentOrganization) {
-    return (
-      <div className={cn("space-y-6", className)}>
-        <Alert>
-          <AlertTriangle className="h-4 w-4" />
-          <AlertDescription>
-            No organization selected. Please select an organization to manage team access.
-          </AlertDescription>
-        </Alert>
-      </div>
-    );
-  }
-
-  // Search for users
+  // Search for users - MUST be called unconditionally
   const searchResults = useQuery(
     api.users.searchUsers,
-    searchTerm.length >= 2 && organizationId 
-      ? { searchTerm, organizationId, limit: 10 } 
+    searchTerm.length >= 2 && organizationId
+      ? { searchTerm, organizationId, limit: 10 }
       : "skip"
   );
 
-  // Field arrays for dynamic forms
+  // Field arrays for dynamic forms - MUST be called unconditionally
   const {
     fields: teamMemberFields,
     append: appendTeamMember,
@@ -168,14 +140,20 @@ export function TeamAccessStep({ className }: TeamAccessStepProps) {
     name: "teamAccess.clients",
   });
 
-  // Get user details for team members and clients
+  // Get user details for team members and clients - MUST be called unconditionally
   const teamMemberIds = useMemo(
-    () => (form.watch("teamAccess.teamMembers") || []).map((m) => m.userId as Id<"users">),
+    () =>
+      (form.watch("teamAccess.teamMembers") || []).map(
+        (m) => m.userId as Id<"users">
+      ),
     [form]
   );
 
   const clientIds = useMemo(
-    () => (form.watch("teamAccess.clients") || []).map((c) => c.userId as Id<"users">),
+    () =>
+      (form.watch("teamAccess.clients") || []).map(
+        (c) => c.userId as Id<"users">
+      ),
     [form]
   );
 
@@ -189,17 +167,50 @@ export function TeamAccessStep({ className }: TeamAccessStepProps) {
     clientIds.length > 0 ? { userIds: clientIds } : "skip"
   );
 
-  // Initialize with current user as owner if empty
+  // Initialize with current user as owner if empty - MUST be called unconditionally
   useEffect(() => {
     if (currentUser && teamMemberFields.length === 0) {
       appendTeamMember({
         userId: currentUser._id,
         role: "owner",
         notifications: true,
-        assignedAt: Date.now(), // Add the missing assignedAt field
+        assignedAt: Date.now(),
       });
     }
   }, [currentUser, teamMemberFields.length, appendTeamMember]);
+
+  // Show loading state if we're still loading user or organization data
+  // AFTER all hooks have been called
+  if (userLoading || orgLoading) {
+    return (
+      <div className={cn("space-y-6", className)}>
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+            <p className="text-muted-foreground">
+              Loading team access settings...
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Show error if no organization is available
+  // AFTER all hooks have been called
+  if (!currentOrganization) {
+    return (
+      <div className={cn("space-y-6", className)}>
+        <Alert>
+          <AlertTriangle className="h-4 w-4" />
+          <AlertDescription>
+            No organization selected. Please select an organization to manage
+            team access.
+          </AlertDescription>
+        </Alert>
+      </div>
+    );
+  }
 
   // Handle adding team member or client
   const handleAddUser = (userId: string, type: "team" | "client") => {
@@ -233,8 +244,12 @@ export function TeamAccessStep({ className }: TeamAccessStepProps) {
 
   // Get user display info
   const getUserInfo = (userId: string) => {
-    const teamUser = teamMemberUsers?.find((u: any) => u._id === (userId as Id<"users">));
-    const clientUser = clientUsers?.find((u: any) => u._id === (userId as Id<"users">));
+    const teamUser = teamMemberUsers?.find(
+      (u: any) => u._id === (userId as Id<"users">)
+    );
+    const clientUser = clientUsers?.find(
+      (u: any) => u._id === (userId as Id<"users">)
+    );
     const user = teamUser || clientUser;
 
     if (!user) return null;
