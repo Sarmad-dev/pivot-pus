@@ -41,7 +41,7 @@ function bytesToBase64(bytes: Uint8Array): string {
  * In production, this should be stored in a secure key management service
  */
 function getEncryptionKey(): string {
-  const key = process.env.TOKEN_ENCRYPTION_KEY;
+  const key = process.env.NEXT_PUBLIC_TOKEN_ENCRYPTION_KEY;
 
   if (!key) {
     throw new Error(

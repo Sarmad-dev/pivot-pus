@@ -8,7 +8,7 @@ import { exchangeCodeForTokens } from "@/lib/api/oauth/token-exchange";
 
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
-  console.log("Search Params: ", searchParams)
+  console.log("Search Params: ", searchParams);
   const code = searchParams.get("code");
   const state = searchParams.get("state");
   const error = searchParams.get("error");
@@ -59,11 +59,13 @@ export async function GET(request: NextRequest) {
 
     // Store tokens temporarily and let frontend complete the flow
     // This avoids authentication issues during OAuth redirect
-    console.log("[Google OAuth Callback] Storing tokens temporarily for frontend processing");
-    
+    console.log(
+      "[Google OAuth Callback] Storing tokens temporarily for frontend processing"
+    );
+
     // Create a temporary token storage key
     const tempKey = `oauth_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    
+
     // In a real app, you'd store this in Redis or a database with expiration
     // For now, we'll pass the tokens securely to the frontend
     const tokenData = {
@@ -78,9 +80,13 @@ export async function GET(request: NextRequest) {
     };
 
     // Encode the token data (in production, encrypt this)
-    const encodedTokens = Buffer.from(JSON.stringify(tokenData)).toString('base64');
-    
-    console.log("[Google OAuth Callback] Redirecting to frontend with temporary tokens");
+    const encodedTokens = Buffer.from(JSON.stringify(tokenData)).toString(
+      "base64"
+    );
+
+    console.log(
+      "[Google OAuth Callback] Redirecting to frontend with temporary tokens"
+    );
 
     // Redirect to campaign create page with temporary token data
     return NextResponse.redirect(
