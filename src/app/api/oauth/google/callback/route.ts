@@ -5,10 +5,10 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { exchangeCodeForTokens } from "@/lib/api/oauth/token-exchange";
-import { convexAuthNextjsToken } from "@convex-dev/auth/nextjs/server";
 
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
+  console.log("Search Params: ", searchParams)
   const code = searchParams.get("code");
   const state = searchParams.get("state");
   const error = searchParams.get("error");
