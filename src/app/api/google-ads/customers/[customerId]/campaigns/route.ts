@@ -3,11 +3,11 @@ import { GoogleAdsApi } from "google-ads-api";
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { customerId: string } }
+  { params }: { params: Promise<{ customerId: string }> }
 ) {
   try {
     const { tokens, query } = await request.json();
-    const { customerId } = params;
+    const { customerId } = await params;
     const developerToken = process.env.GOOGLE_ADS_DEVELOPER_TOKEN;
 
     if (!tokens || !query) {
