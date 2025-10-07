@@ -47,7 +47,8 @@
   - Add metric weighting and timeframe selection controls
   - _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5_
 
-- [ ] 8. Implement Step 4: Team & Access management
+- [x] 8. Implement Step 4: Team & Access management
+
   - Create TeamAccessStep component with team member selection
   - Build role assignment interface (owner, editor, viewer)
   - Implement client assignment with automatic view-only permissions
@@ -90,51 +91,88 @@
   - _Requirements: 4.2, 4.4_
 
 - [x] 14. Implement Google Ads campaign import
-
   - Create Google Ads API integration with authentication and campaign retrieval
   - Build Google Ads campaign selection and preview interface
   - Implement data transformation and mapping from Google Ads format
   - Add comprehensive error handling for API failures and data inconsistencies
   - _Requirements: 4.3, 4.4, 4.5_
 
-- [ ] 15. Build platform selector and import workflow
+- [x] 15. Build platform selector and import workflow
+
   - Create PlatformSelector component showing available import options
   - Implement import workflow orchestration with progress tracking
   - Add platform connection status indicators and re-authentication flows
   - Build import completion handling with success/error feedback
   - _Requirements: 4.1, 4.4_
 
-- [ ] 16. Create campaign creation page and routing
+- [x] 16. Create campaign creation page and routing
+
+
   - Build main campaign creation page with wizard integration
   - Implement proper routing for create/edit/import modes
   - Add navigation guards for unsaved changes
   - Create breadcrumb navigation and page title management
   - _Requirements: 1.1, 6.2_
 
-- [ ] 17. Implement comprehensive form validation and error handling
-  - Add client-side validation with immediate feedback for all form fields
-  - Implement server-side validation in Convex functions
-  - Create user-friendly error messages and validation state management
+- [ ] 17. Fix auto-save infinite loop issue
+  - Debug and resolve the auto-save infinite loop in CampaignWizard
+  - Implement proper data change detection to prevent unnecessary saves
+  - Add rate limiting and debouncing to auto-save functionality
+  - Test auto-save with different wizard steps and data changes
+  - _Requirements: 6.1, 6.4_
+
+- [ ] 18. Complete Step 2 and Step 3 wizard components
+  - Finish implementing AudienceChannelsStep component with full functionality
+  - Complete KPIsStep component with all KPI selection and validation features
+  - Add proper form validation and error handling for both steps
+  - Integrate with the wizard navigation and validation system
+  - _Requirements: 2.1, 2.2, 2.3, 2.4, 2.5, 3.1, 3.2, 3.3, 3.4, 3.5_
+
+- [ ] 19. Enhance team member and client management
+  - Improve user search functionality in TeamAccessStep
+  - Add proper user profile display with avatars and role indicators
+  - Implement team member invitation system with email notifications
+  - Add bulk team member operations (add multiple, remove multiple)
+  - _Requirements: 5.1, 5.2, 5.3, 5.4, 5.5_
+
+- [ ] 20. Add comprehensive form validation and error handling
+  - Implement cross-step validation to ensure data consistency
+  - Add real-time validation feedback with clear error messages
+  - Create validation summary in preview step showing all issues
   - Add form submission error handling with retry mechanisms
   - _Requirements: 1.5, 2.5, 3.4, 3.5, 7.5_
 
-- [ ] 18. Add team notifications and permissions integration
-  - Implement notification system for team member assignments
-  - Create email notifications for campaign creation and team assignments
-  - Add permission checks throughout the campaign creation workflow
+- [ ] 21. Implement team notifications and permissions integration
+  - Create notification system for team member assignments
+  - Add email notifications for campaign creation and team assignments
+  - Implement permission checks throughout the campaign creation workflow
   - Build role-based access control for campaign editing and viewing
   - _Requirements: 5.4, 5.5_
 
-- [ ] 19. Create comprehensive test suite
+- [ ] 22. Add campaign list and management pages
+  - Create campaign list page showing all campaigns for an organization
+  - Implement campaign filtering, sorting, and search functionality
+  - Add campaign status management (draft, active, paused, completed)
+  - Create campaign detail view with edit capabilities
+  - _Requirements: 1.1, 5.1, 6.2_
+
+- [ ] 23. Enhance import workflow with better error handling
+  - Improve OAuth error handling and user feedback
+  - Add retry mechanisms for failed API calls during import
+  - Implement partial import support for when some campaigns fail
+  - Add import progress tracking and cancellation support
+  - _Requirements: 4.1, 4.4, 4.5_
+
+- [ ] 24. Create comprehensive test suite
   - Write unit tests for all Zod validation schemas and form logic
   - Create integration tests for Convex functions and API operations
   - Build end-to-end tests for complete wizard workflows
   - Add tests for import functionality with mocked API responses
   - _Requirements: All requirements - testing coverage_
 
-- [ ] 20. Integrate with existing application structure
-  - Connect campaign creation to main application navigation
-  - Update dashboard to show created campaigns
-  - Integrate with existing authentication and organization context
-  - Add campaign creation to user onboarding flow if applicable
-  - _Requirements: 1.1, 5.1, 6.2_
+- [ ] 25. Performance optimization and polish
+  - Optimize component re-renders and form performance
+  - Add loading states and skeleton screens for better UX
+  - Implement proper error boundaries for graceful error handling
+  - Add accessibility improvements and keyboard navigation
+  - _Requirements: 1.4, 7.3_
