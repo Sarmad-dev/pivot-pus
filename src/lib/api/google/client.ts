@@ -6,8 +6,8 @@ import { BaseAPIClient } from '../base-client';
 import { OAuthTokens } from '../types';
 import { AuthenticationError } from '../errors';
 
-const GOOGLE_ADS_API_VERSION = 'v18';
-const GOOGLE_ADS_BASE_URL = `https://googleads.googleapis.com/${GOOGLE_ADS_API_VERSION}`;
+// Use Next.js API routes instead of direct Google API calls
+const GOOGLE_ADS_BASE_URL = '/api/google-ads';
 
 export interface GoogleAdsCustomer {
   resourceName: string;
@@ -40,11 +40,8 @@ export interface GoogleAdsCampaignMetrics {
 }
 
 export class GoogleAdsClient extends BaseAPIClient {
-  private developerToken: string;
-
   constructor() {
     super('google', GOOGLE_ADS_BASE_URL);
-    this.developerToken = process.env.GOOGLE_ADS_DEVELOPER_TOKEN || '';
   }
 
   /**
@@ -59,29 +56,29 @@ export class GoogleAdsClient extends BaseAPIClient {
     }
 
     try {
-      const response = await fetch('https://oauth2.googleapis.com/token', {
+      const response = await fetch('/api/oauth/refresh', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
+          'Content-Type': 'application/json',
         },
-        body: new URLSearchParams({
-          client_id: process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || '',
-          client_secret: process.env.GOOGLE_CLIENT_SECRET || '',
-          refresh_token: this.tokens.refreshToken,
-          grant_type: 'refresh_token',
+        body: JSON.stringify({
+          platform: this.platform,
+          refreshToken: this.tokens.refreshToken,
         }),
       });
 
       if (!response.ok) {
-        throw new Error('Token refresh failed');
+        const errorData = await response.text();
+        console.error('Token refresh failed:', errorData);
+        throw new Error(`Token refresh failed: ${response.status} ${response.statusText}`);
       }
 
       const data = await response.json();
 
       return {
-        accessToken: data.access_token,
-        refreshToken: this.tokens.refreshToken,
-        expiresAt: Date.now() + (data.expires_in * 1000),
+        accessToken: data.accessToken,
+        refreshToken: data.refreshToken,
+        expiresAt: data.expiresAt,
         scope: data.scope,
       };
     } catch (error) {
@@ -94,46 +91,81 @@ export class GoogleAdsClient extends BaseAPIClient {
   }
 
   /**
-   * Override to add Google Ads specific headers
+   * Override to make requests through Next.js API routes
    */
   protected async request<T>(
     endpoint: string,
     options: any = {}
   ): Promise<T> {
-    const headers = {
-      ...options.headers,
-      'developer-token': this.developerToken,
+    const method = options.method || 'GET';
+    
+    // For GET requests, pass tokens as query parameters
+    if (method === 'GET') {
+      const params = {
+        ...options.params,
+        accessToken: this.tokens?.accessToken || '',
+        refreshToken: this.tokens?.refreshToken || '',
+      };
+      return super.request<T>(endpoint, { ...options, params });
+    }
+    
+    // For POST/PUT/DELETE requests, pass tokens in the request body
+    const body = {
+      ...options.body,
+      tokens: this.tokens,
     };
 
-    return super.request<T>(endpoint, { ...options, headers });
+    return super.request<T>(endpoint, { ...options, body });
   }
 
   /**
    * Get accessible customer accounts
    */
   async getCustomers(): Promise<GoogleAdsCustomer[]> {
-    const query = `
-      SELECT
-        customer.id,
-        customer.descriptive_name,
-        customer.currency_code,
-        customer.time_zone
-      FROM customer
-      WHERE customer.status = 'ENABLED'
-    `;
+    // First get accessible customers using the base client's GET method (handles token refresh)
+    console.log('Getting accessible customers...');
 
-    const response = await this.post<{ results: any[] }>(
-      '/customers:searchStream',
-      { query }
-    );
+    const accessibleResponse = await this.get<{ resourceNames: string[] }>('/customers');
+    console.log('Accessible customers response:', accessibleResponse);
 
-    return response.results.map((result: any) => ({
-      resourceName: result.customer.resourceName,
-      id: result.customer.id,
-      descriptiveName: result.customer.descriptiveName,
-      currencyCode: result.customer.currencyCode,
-      timeZone: result.customer.timeZone,
-    }));
+    // Then get details for each customer
+    const customers: GoogleAdsCustomer[] = [];
+    
+    for (const resourceName of accessibleResponse.resourceNames) {
+      const customerId = resourceName.split('/')[1];
+      
+      const query = `
+        SELECT
+          customer.id,
+          customer.descriptive_name,
+          customer.currency_code,
+          customer.time_zone
+        FROM customer
+        LIMIT 1
+      `;
+
+      try {
+        const response = await this.post<{ results: any[] }>(
+          `/customers/${customerId}/campaigns`,
+          { query }
+        );
+
+        if (response.results && response.results.length > 0) {
+          const result = response.results[0];
+          customers.push({
+            resourceName: result.customer.resourceName,
+            id: result.customer.id,
+            descriptiveName: result.customer.descriptiveName,
+            currencyCode: result.customer.currencyCode,
+            timeZone: result.customer.timeZone,
+          });
+        }
+      } catch (error) {
+        console.warn(`Failed to get details for customer ${customerId}:`, error);
+      }
+    }
+
+    return customers;
   }
 
   /**
@@ -156,7 +188,7 @@ export class GoogleAdsClient extends BaseAPIClient {
     `;
 
     const response = await this.post<{ results: any[] }>(
-      `/customers/${customerId}/googleAds:search`,
+      `/customers/${customerId}/campaigns`,
       { query }
     );
 
@@ -195,7 +227,7 @@ export class GoogleAdsClient extends BaseAPIClient {
     `;
 
     const response = await this.post<{ results: any[] }>(
-      `/customers/${customerId}/googleAds:search`,
+      `/customers/${customerId}/campaigns`,
       { query }
     );
 
@@ -237,7 +269,7 @@ export class GoogleAdsClient extends BaseAPIClient {
     `;
 
     const response = await this.post<{ results: any[] }>(
-      `/customers/${customerId}/googleAds:search`,
+      `/customers/${customerId}/campaigns`,
       { query }
     );
 
@@ -274,7 +306,7 @@ export class GoogleAdsClient extends BaseAPIClient {
     `;
 
     const response = await this.post<{ results: any[] }>(
-      `/customers/${customerId}/googleAds:search`,
+      `/customers/${customerId}/campaigns`,
       { query }
     );
 
@@ -298,7 +330,7 @@ export class GoogleAdsClient extends BaseAPIClient {
     `;
 
     const response = await this.post<{ results: any[] }>(
-      `/customers/${customerId}/googleAds:search`,
+      `/customers/${customerId}/campaigns`,
       { query }
     );
 

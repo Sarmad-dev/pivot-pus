@@ -20,7 +20,7 @@ export async function GET(request: NextRequest) {
     console.error("[Google OAuth Callback] OAuth error:", errorMessage);
     return NextResponse.redirect(
       new URL(
-        `/campaign/create?error=${encodeURIComponent(errorMessage)}`,
+        `${process.env.NEXT_PUBLIC_APP_URL}/campaign/create?error=${encodeURIComponent(errorMessage)}`,
         request.url
       )
     );
@@ -35,7 +35,7 @@ export async function GET(request: NextRequest) {
     });
     return NextResponse.redirect(
       new URL(
-        `/campaign/create?error=Missing authorization code or state. Please check Google Cloud Console redirect URI configuration.`,
+        `${process.env.NEXT_PUBLIC_APP_URL}/campaign/create?error=Missing authorization code or state. Please check Google Cloud Console redirect URI configuration.`,
         request.url
       )
     );
@@ -91,7 +91,7 @@ export async function GET(request: NextRequest) {
     // Redirect to campaign create page with temporary token data
     return NextResponse.redirect(
       new URL(
-        `/campaign/create?platform=google&oauth_data=${encodeURIComponent(encodedTokens)}`,
+        `${process.env.NEXT_PUBLIC_APP_URL}/campaign/create?platform=google&oauth_data=${encodeURIComponent(encodedTokens)}`,
         request.url
       )
     );
@@ -106,7 +106,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.redirect(
       new URL(
-        `/campaign/create?error=${encodeURIComponent(errorMessage)}`,
+        `${process.env.NEXT_PUBLIC_APP_URL}/campaign/create?error=${encodeURIComponent(errorMessage)}`,
         request.url
       )
     );

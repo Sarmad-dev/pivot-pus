@@ -28,7 +28,7 @@ export default convexAuthNextjsMiddleware(
 
     const authed = await convexAuth.isAuthenticated();
 
-    if (PublicMatcher(request) && authed) return
+    if (PublicMatcher(request) && authed) return;
 
     if (ProtectedMatcher(request) && !authed) {
       return nextjsMiddlewareRedirect(request, "/auth/sign-in");
@@ -43,9 +43,10 @@ export default convexAuthNextjsMiddleware(
 
 export const config = {
   // The following matcher runs middleware on all routes
-  // except static assets and API routes.
+  // except static assets. Include /api/auth for Convex auth.
   matcher: [
-    "/((?!api|_next/static|_next/image|favicon.ico).*)",
+    "/((?!api/oauth|_next/static|_next/image|favicon.ico).*)",
     "/",
+    "/api/auth",
   ],
 };
