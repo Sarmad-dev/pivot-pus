@@ -6,12 +6,9 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { useMutation } from "convex/react";
-import { api } from "../../convex/_generated/api";
 
 export const useAuth = () => {
   const { signIn, signOut } = useAuthActions();
-  const createUserProfile = useMutation(api.users.createUserProfileAfterSignup);
   const router = useRouter();
 
   const signInForm = useForm<SignInData>({
