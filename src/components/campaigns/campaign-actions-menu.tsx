@@ -26,7 +26,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { Campaign, CampaignPermissions, CampaignStatus } from "@/types/campaign";
-import { Id } from "@/convex/_generated/dataModel";
+import { Id } from "@/../convex/_generated/dataModel";
 
 interface CampaignActionsMenuProps {
   campaign: Campaign;
