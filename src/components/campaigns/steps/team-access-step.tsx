@@ -218,6 +218,33 @@ export function TeamAccessStep({ className }: TeamAccessStepProps) {
     }
   }, [currentUser, teamMemberFields.length, appendTeamMember]);
 
+  // Filter search results based on current assignments and filter - MUST be called unconditionally
+  const filteredSearchResults = useMemo(() => {
+    if (!searchResults) return [];
+
+    const currentTeamMemberIds = new Set(
+      (form.watch("teamAccess.teamMembers") || []).map(m => m.userId)
+    );
+    const currentClientIds = new Set(
+      (form.watch("teamAccess.clients") || []).map(c => c.userId)
+    );
+
+    return searchResults.filter((user: any) => {
+      const isTeamMember = currentTeamMemberIds.has(user._id);
+      const isClient = currentClientIds.has(user._id);
+      const isAssigned = isTeamMember || isClient;
+
+      switch (searchFilter) {
+        case "members":
+          return isAssigned;
+        case "non-members":
+          return !isAssigned;
+        default:
+          return true;
+      }
+    });
+  }, [searchResults, form, searchFilter]);
+
   // Show loading state if we're still loading user or organization data
   // AFTER all hooks have been called
   if (userLoading || orgLoading) {
@@ -363,32 +390,7 @@ export function TeamAccessStep({ className }: TeamAccessStepProps) {
     }
   };
 
-  // Filter search results based on current assignments and filter
-  const filteredSearchResults = useMemo(() => {
-    if (!searchResults) return [];
 
-    const currentTeamMemberIds = new Set(
-      (form.watch("teamAccess.teamMembers") || []).map(m => m.userId)
-    );
-    const currentClientIds = new Set(
-      (form.watch("teamAccess.clients") || []).map(c => c.userId)
-    );
-
-    return searchResults.filter((user: any) => {
-      const isTeamMember = currentTeamMemberIds.has(user._id);
-      const isClient = currentClientIds.has(user._id);
-      const isAssigned = isTeamMember || isClient;
-
-      switch (searchFilter) {
-        case "members":
-          return isAssigned;
-        case "non-members":
-          return !isAssigned;
-        default:
-          return true;
-      }
-    });
-  }, [searchResults, form, searchFilter]);
 
   // Toggle user selection for bulk operations
   const toggleUserSelection = (userId: string) => {
