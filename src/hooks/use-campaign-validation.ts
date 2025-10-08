@@ -40,24 +40,11 @@ interface ValidationResult {
 
 export function useCampaignValidation(): ValidationResult {
   const formContext = useFormContext<CampaignFormData>();
-  
-  // Return empty validation result if form context is not available
-  if (!formContext) {
-    return {
-      isValid: true,
-      issues: [],
-      stepValidation: {},
-      canProceedToStep: () => true,
-      getStepIssues: () => [],
-      validateStep: async () => true,
-      validateComplete: () => ({ isValid: true, issues: [] }),
-    };
-  }
-  
-  const { getValues, setError, clearErrors } = formContext;
+  const { getValues, setError, clearErrors } = formContext || {};
 
   // Real-time validation of current form data
   const validateFormData = useCallback((data: CampaignFormData): ValidationIssue[] => {
+    if (!formContext) return [];
     const issues: ValidationIssue[] = [];
 
     // Validate individual steps
@@ -169,10 +156,10 @@ export function useCampaignValidation(): ValidationResult {
     }
 
     return issues;
-  }, []);
+  }, [formContext]);
 
   // Get current form data and validate
-  const currentData = getValues();
+  const currentData = getValues?.() || {};
   const allIssues = useMemo(() => validateFormData(currentData), [validateFormData, currentData]);
 
   // Group issues by step
@@ -193,6 +180,8 @@ export function useCampaignValidation(): ValidationResult {
 
   // Check if we can proceed to a specific step
   const canProceedToStep = useCallback((targetStep: number): boolean => {
+    if (!formContext) return true;
+    
     // Can always go to step 1
     if (targetStep === 1) return true;
     
@@ -204,15 +193,18 @@ export function useCampaignValidation(): ValidationResult {
     }
     
     return true;
-  }, [stepValidation]);
+  }, [stepValidation, formContext]);
 
   // Get issues for a specific step
   const getStepIssues = useCallback((step: number): ValidationIssue[] => {
+    if (!formContext) return [];
     return stepValidation[step]?.issues || [];
-  }, [stepValidation]);
+  }, [stepValidation, formContext]);
 
   // Validate a specific step and set form errors
   const validateStep = useCallback(async (step: number): Promise<boolean> => {
+    if (!formContext || !getValues || !setError || !clearErrors) return true;
+    
     const data = getValues();
     let stepData: any;
     
@@ -263,10 +255,14 @@ export function useCampaignValidation(): ValidationResult {
       console.error(`Step ${step} validation error:`, error);
       return false;
     }
-  }, [getValues, setError, clearErrors]);
+  }, [getValues, setError, clearErrors, formContext]);
 
   // Validate complete campaign
   const validateComplete = useCallback((): { isValid: boolean; issues: ValidationIssue[] } => {
+    if (!formContext || !getValues) {
+      return { isValid: true, issues: [] };
+    }
+    
     const data = getValues();
     
     try {
@@ -295,11 +291,24 @@ export function useCampaignValidation(): ValidationResult {
         }]
       };
     }
-  }, [getValues]);
+  }, [getValues, formContext]);
 
   // Overall validation status
   const errorIssues = allIssues.filter((issue: ValidationIssue) => issue.severity === "error");
   const isValid = errorIssues.length === 0;
+
+  // Return appropriate result based on form context availability
+  if (!formContext) {
+    return {
+      isValid: true,
+      issues: [],
+      stepValidation: {},
+      canProceedToStep: () => true,
+      getStepIssues: () => [],
+      validateStep: async () => true,
+      validateComplete: () => ({ isValid: true, issues: [] }),
+    };
+  }
 
   return {
     isValid,
