@@ -1,10 +1,9 @@
 import { mutation } from "../_generated/server";
 import { v } from "convex/values";
+import { api } from "../_generated/api";
 import {
   validateCampaignData,
   validateDraftData,
-  validateTeamMemberRemoval,
-  validateRoleChange,
   validateCampaignForPublication,
 } from "./validation";
 import {
@@ -13,7 +12,24 @@ import {
   validateClientAssignment,
 } from "./helpers";
 import { getOrCreateUserProfile } from "../users";
-// Note: Now using getOrCreateUserProfile from users module
+import {
+  canEditCampaign,
+  canDeleteCampaign,
+  canManageTeamMembers,
+  canManageClients,
+  canPublishCampaign,
+  validateTeamMemberAssignment as validateTeamAssignment,
+  validateTeamMemberRemoval as validateTeamRemoval,
+  validateRoleChange as validateRoleChangePermission,
+  checkOrganizationAccess,
+} from "../permissions";
+import {
+  createNotification,
+  notifyTeamAssignment,
+  notifyCampaignCreation,
+  notifyRoleChange,
+} from "../notifications";
+// Note: Now using getOrCreateUserProfile from users module and new permission/notification systems
 
 // Create a new campaign
 export const createCampaign = mutation({
@@ -200,6 +216,17 @@ export const createCampaignFromWizard = mutation({
 
     const campaignId = await ctx.db.insert("campaigns", campaignData);
 
+    // Send notifications to team members about campaign creation
+    const teamMemberIds = campaignData.teamMembers.map((member: any) => member.userId);
+    if (teamMemberIds.length > 1) { // Only notify if there are team members besides creator
+      await ctx.runMutation(api.notifications.notifyCampaignCreation, {
+        campaignId,
+        createdByUserId: userProfile._id,
+        organizationId: args.organizationId,
+        teamMemberIds,
+      });
+    }
+
     // Clean up any related drafts for this user/organization
     const userDrafts = await ctx.db
       .query("campaignDrafts")
@@ -303,16 +330,8 @@ export const updateCampaign = mutation({
       throw new Error("Campaign not found");
     }
 
-    // Check permissions
-    const canEdit =
-      campaign.createdBy === userId ||
-      campaign.teamMembers.some(
-        (member) =>
-          member.userId === userId &&
-          (member.role === "owner" || member.role === "editor")
-      );
-
-    if (!canEdit) {
+    // Check permissions using new permission system
+    if (!canEditCampaign(userId, campaign)) {
       throw new Error("Not authorized to update this campaign");
     }
 
@@ -332,6 +351,27 @@ export const updateCampaign = mutation({
       ...args.updates,
       updatedAt: Date.now(),
     });
+
+    // Notify team members about campaign update (except the updater)
+    const teamMemberIds = campaign.teamMembers
+      .filter((member: any) => member.userId !== userId && member.notifications !== false)
+      .map((member: any) => member.userId);
+
+    for (const memberId of teamMemberIds) {
+      await ctx.runMutation(api.notifications.createNotification, {
+        userId: memberId,
+        type: "campaign_updated",
+        title: "Campaign Updated",
+        message: `The campaign "${campaign.name}" has been updated`,
+        campaignId: args.campaignId,
+        organizationId: campaign.organizationId,
+        metadata: {
+          updatedBy: userId,
+          campaignName: campaign.name,
+        },
+        priority: "low",
+      });
+    }
 
     return args.campaignId;
   },
@@ -376,19 +416,14 @@ export const addTeamMember = mutation({
       throw new Error("Campaign not found");
     }
 
-    // Check if current user has permission to add team members (owner or editor)
-    const canManageTeam =
-      campaign.createdBy === currentUserId ||
-      campaign.teamMembers.some(
-        (member) => member.userId === currentUserId && member.role === "owner"
-      );
-
-    if (!canManageTeam) {
+    // Check permissions using new permission system
+    if (!canManageTeamMembers(currentUserId, campaign)) {
       throw new Error("Not authorized to manage team members");
     }
 
-    // Validate team member assignment
-    const validation = validateTeamMemberAssignment(
+    // Validate team member assignment using new permission system
+    const validation = validateTeamAssignment(
+      currentUserId,
       args.userId,
       args.role,
       campaign
@@ -401,11 +436,21 @@ export const addTeamMember = mutation({
       userId: args.userId,
       role: args.role,
       assignedAt: Date.now(),
+      notifications: true, // Default to notifications enabled
     };
 
     await ctx.db.patch(args.campaignId, {
       teamMembers: [...campaign.teamMembers, newTeamMember],
       updatedAt: Date.now(),
+    });
+
+    // Send notification to the assigned user
+    await ctx.runMutation(api.notifications.notifyTeamAssignment, {
+      campaignId: args.campaignId,
+      assignedUserId: args.userId,
+      assignedByUserId: currentUserId,
+      role: args.role,
+      organizationId: campaign.organizationId,
     });
 
     return true;
@@ -427,19 +472,17 @@ export const removeTeamMember = mutation({
       throw new Error("Campaign not found");
     }
 
-    // Check if current user has permission to remove team members (owner only)
-    const canManageTeam =
-      campaign.createdBy === currentUserId ||
-      campaign.teamMembers.some(
-        (member) => member.userId === currentUserId && member.role === "owner"
-      );
-
-    if (!canManageTeam) {
+    // Check permissions using new permission system
+    if (!canManageTeamMembers(currentUserId, campaign)) {
       throw new Error("Not authorized to manage team members");
     }
 
-    // Validate team member removal
-    const validation = validateTeamMemberRemoval(args.userId, campaign);
+    // Validate team member removal using new permission system
+    const validation = validateTeamRemoval(
+      currentUserId,
+      args.userId,
+      campaign
+    );
     if (!validation.isValid) {
       throw new Error(validation.error!);
     }
@@ -451,6 +494,21 @@ export const removeTeamMember = mutation({
     await ctx.db.patch(args.campaignId, {
       teamMembers: updatedTeamMembers,
       updatedAt: Date.now(),
+    });
+
+    // Send notification to the removed user
+    await ctx.runMutation(api.notifications.createNotification, {
+      userId: args.userId,
+      type: "team_member_removed",
+      title: "Removed from Campaign",
+      message: `You have been removed from the campaign "${campaign.name}"`,
+      campaignId: args.campaignId,
+      organizationId: campaign.organizationId,
+      metadata: {
+        campaignName: campaign.name,
+        removedBy: currentUserId,
+      },
+      priority: "medium",
     });
 
     return true;
@@ -473,19 +531,18 @@ export const updateTeamMemberRole = mutation({
       throw new Error("Campaign not found");
     }
 
-    // Check if current user has permission to update roles (owner only)
-    const canManageTeam =
-      campaign.createdBy === currentUserId ||
-      campaign.teamMembers.some(
-        (member) => member.userId === currentUserId && member.role === "owner"
-      );
-
-    if (!canManageTeam) {
+    // Check permissions using new permission system
+    if (!canManageTeamMembers(currentUserId, campaign)) {
       throw new Error("Not authorized to manage team members");
     }
 
-    // Validate role change
-    const validation = validateRoleChange(args.userId, args.role, campaign);
+    // Validate role change using new permission system
+    const validation = validateRoleChangePermission(
+      currentUserId,
+      args.userId,
+      args.role,
+      campaign
+    );
     if (!validation.isValid) {
       throw new Error(validation.error!);
     }
@@ -507,6 +564,15 @@ export const updateTeamMemberRole = mutation({
       updatedAt: Date.now(),
     });
 
+    // Send notification to the user about role change
+    await ctx.runMutation(api.notifications.notifyRoleChange, {
+      campaignId: args.campaignId,
+      userId: args.userId,
+      newRole: args.role,
+      changedByUserId: currentUserId,
+      organizationId: campaign.organizationId,
+    });
+
     return true;
   },
 });
@@ -526,16 +592,8 @@ export const addClient = mutation({
       throw new Error("Campaign not found");
     }
 
-    // Check if current user has permission to add clients (owner or editor)
-    const canManageClients =
-      campaign.createdBy === currentUserId ||
-      campaign.teamMembers.some(
-        (member) =>
-          member.userId === currentUserId &&
-          (member.role === "owner" || member.role === "editor")
-      );
-
-    if (!canManageClients) {
+    // Check permissions using new permission system
+    if (!canManageClients(currentUserId, campaign)) {
       throw new Error("Not authorized to manage clients");
     }
 
@@ -553,6 +611,22 @@ export const addClient = mutation({
     await ctx.db.patch(args.campaignId, {
       clients: [...campaign.clients, newClient],
       updatedAt: Date.now(),
+    });
+
+    // Send notification to the assigned client
+    await ctx.runMutation(api.notifications.createNotification, {
+      userId: args.userId,
+      type: "campaign_assignment",
+      title: "Added as Campaign Client",
+      message: `You have been added as a client to the campaign "${campaign.name}"`,
+      campaignId: args.campaignId,
+      organizationId: campaign.organizationId,
+      metadata: {
+        role: "client",
+        assignedBy: currentUserId,
+        campaignName: campaign.name,
+      },
+      priority: "medium",
     });
 
     return true;
@@ -574,16 +648,8 @@ export const removeClient = mutation({
       throw new Error("Campaign not found");
     }
 
-    // Check if current user has permission to remove clients (owner or editor)
-    const canManageClients =
-      campaign.createdBy === currentUserId ||
-      campaign.teamMembers.some(
-        (member) =>
-          member.userId === currentUserId &&
-          (member.role === "owner" || member.role === "editor")
-      );
-
-    if (!canManageClients) {
+    // Check permissions using new permission system
+    if (!canManageClients(currentUserId, campaign)) {
       throw new Error("Not authorized to manage clients");
     }
 
@@ -604,6 +670,22 @@ export const removeClient = mutation({
       updatedAt: Date.now(),
     });
 
+    // Send notification to the removed client
+    await ctx.runMutation(api.notifications.createNotification, {
+      userId: args.userId,
+      type: "team_member_removed",
+      title: "Removed from Campaign",
+      message: `You have been removed as a client from the campaign "${campaign.name}"`,
+      campaignId: args.campaignId,
+      organizationId: campaign.organizationId,
+      metadata: {
+        campaignName: campaign.name,
+        removedBy: currentUserId,
+        role: "client",
+      },
+      priority: "medium",
+    });
+
     return true;
   },
 });
@@ -622,14 +704,8 @@ export const deleteCampaign = mutation({
       throw new Error("Campaign not found");
     }
 
-    // Only campaign creator or owners can delete campaigns
-    const canDelete =
-      campaign.createdBy === currentUserId ||
-      campaign.teamMembers.some(
-        (member) => member.userId === currentUserId && member.role === "owner"
-      );
-
-    if (!canDelete) {
+    // Check permissions using new permission system
+    if (!canDeleteCampaign(currentUserId, campaign)) {
       throw new Error("Not authorized to delete this campaign");
     }
 
@@ -638,6 +714,26 @@ export const deleteCampaign = mutation({
       throw new Error(
         "Cannot delete active campaigns. Please pause or complete the campaign first."
       );
+    }
+
+    // Notify team members about campaign deletion (except the deleter)
+    const teamMemberIds = campaign.teamMembers
+      .filter((member: any) => member.userId !== currentUserId && member.notifications !== false)
+      .map((member: any) => member.userId);
+
+    for (const memberId of teamMemberIds) {
+      await ctx.runMutation(api.notifications.createNotification, {
+        userId: memberId,
+        type: "campaign_deleted",
+        title: "Campaign Deleted",
+        message: `The campaign "${campaign.name}" has been deleted`,
+        organizationId: campaign.organizationId,
+        metadata: {
+          deletedBy: currentUserId,
+          campaignName: campaign.name,
+        },
+        priority: "medium",
+      });
     }
 
     await ctx.db.delete(args.campaignId);
@@ -659,16 +755,8 @@ export const publishCampaign = mutation({
       throw new Error("Campaign not found");
     }
 
-    // Check if current user has permission to publish (owner or editor)
-    const canPublish =
-      campaign.createdBy === currentUserId ||
-      campaign.teamMembers.some(
-        (member) =>
-          member.userId === currentUserId &&
-          (member.role === "owner" || member.role === "editor")
-      );
-
-    if (!canPublish) {
+    // Check permissions using new permission system
+    if (!canPublishCampaign(currentUserId, campaign)) {
       throw new Error("Not authorized to publish this campaign");
     }
 
@@ -689,6 +777,120 @@ export const publishCampaign = mutation({
       status: "active",
       updatedAt: Date.now(),
     });
+
+    // Notify team members about campaign publication (except the publisher)
+    const teamMemberIds = campaign.teamMembers
+      .filter((member: any) => member.userId !== currentUserId && member.notifications !== false)
+      .map((member: any) => member.userId);
+
+    for (const memberId of teamMemberIds) {
+      await ctx.runMutation(api.notifications.createNotification, {
+        userId: memberId,
+        type: "campaign_updated",
+        title: "Campaign Published",
+        message: `The campaign "${campaign.name}" has been published and is now active`,
+        campaignId: args.campaignId,
+        organizationId: campaign.organizationId,
+        metadata: {
+          publishedBy: currentUserId,
+          campaignName: campaign.name,
+          action: "published",
+        },
+        priority: "medium",
+      });
+    }
+
+    return true;
+  },
+});
+
+// Update campaign status
+export const updateCampaignStatus = mutation({
+  args: {
+    campaignId: v.id("campaigns"),
+    status: v.union(
+      v.literal("draft"),
+      v.literal("active"),
+      v.literal("paused"),
+      v.literal("completed")
+    ),
+  },
+  handler: async (ctx, args) => {
+    const currentUserProfile = await getOrCreateUserProfile(ctx);
+    const currentUserId = currentUserProfile._id;
+    const campaign = await ctx.db.get(args.campaignId);
+
+    if (!campaign) {
+      throw new Error("Campaign not found");
+    }
+
+    // Check permissions using new permission system
+    if (!canEditCampaign(currentUserId, campaign)) {
+      throw new Error("Not authorized to update this campaign");
+    }
+
+    // Validate status transitions
+    const currentStatus = campaign.status;
+    const newStatus = args.status;
+
+    // Define valid status transitions
+    const validTransitions: Record<string, string[]> = {
+      draft: ["active"],
+      active: ["paused", "completed"],
+      paused: ["active", "completed"],
+      completed: [], // Cannot transition from completed
+    };
+
+    if (!validTransitions[currentStatus]?.includes(newStatus)) {
+      throw new Error(
+        `Invalid status transition from ${currentStatus} to ${newStatus}`
+      );
+    }
+
+    // Additional validation for specific transitions
+    if (newStatus === "active" && currentStatus === "draft") {
+      const validation = validateCampaignForPublication(campaign);
+      if (!validation.isValid) {
+        throw new Error(
+          `Cannot activate campaign: ${validation.errors.join(", ")}`
+        );
+      }
+    }
+
+    await ctx.db.patch(args.campaignId, {
+      status: newStatus,
+      updatedAt: Date.now(),
+    });
+
+    // Notify team members about status change (except the updater)
+    const teamMemberIds = campaign.teamMembers
+      .filter((member: any) => member.userId !== currentUserId && member.notifications !== false)
+      .map((member: any) => member.userId);
+
+    const statusMessages = {
+      active: "activated",
+      paused: "paused",
+      completed: "completed",
+      draft: "moved to draft",
+    };
+
+    for (const memberId of teamMemberIds) {
+      await ctx.runMutation(api.notifications.createNotification, {
+        userId: memberId,
+        type: "campaign_updated",
+        title: "Campaign Status Updated",
+        message: `The campaign "${campaign.name}" has been ${statusMessages[newStatus]}`,
+        campaignId: args.campaignId,
+        organizationId: campaign.organizationId,
+        metadata: {
+          updatedBy: currentUserId,
+          campaignName: campaign.name,
+          oldStatus: currentStatus,
+          newStatus: newStatus,
+        },
+        priority: "medium",
+      });
+    }
 
     return true;
   },

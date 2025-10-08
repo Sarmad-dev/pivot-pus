@@ -43,13 +43,60 @@ export function useAutoSave<T>({
 
   const debouncedData = useDebounce(data, delay);
   const lastSavedDataRef = useRef<T | null>(null);
+  const lastSavedDataStringRef = useRef<string>('');
   const isInitialMount = useRef(true);
   const retryTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const retryCountRef = useRef(0);
+  const lastSaveAttemptRef = useRef<number>(0);
   const maxRetries = 3;
+  const minSaveInterval = 5000; // Minimum 5 seconds between save attempts
+
+  // Helper function to create stable data representation
+  const getDataString = useCallback((data: T): string => {
+    try {
+      // Handle special cases for stable serialization
+      const normalizeData = (obj: any): any => {
+        if (obj instanceof Date) {
+          return obj.getTime();
+        }
+        if (Array.isArray(obj)) {
+          return obj.map(normalizeData);
+        }
+        if (obj && typeof obj === 'object') {
+          const normalized: any = {};
+          Object.keys(obj).sort().forEach(key => {
+            normalized[key] = normalizeData(obj[key]);
+          });
+          return normalized;
+        }
+        return obj;
+      };
+
+      return JSON.stringify(normalizeData(data));
+    } catch (error) {
+      console.warn('Error serializing data for comparison:', error);
+      return String(data);
+    }
+  }, []);
 
   const save = useCallback(async (isRetry = false) => {
     if (!enabled || status === 'saving') return;
+
+    // Rate limiting: prevent saves too close together
+    const now = Date.now();
+    if (!isRetry && now - lastSaveAttemptRef.current < minSaveInterval) {
+      console.log('Auto-save rate limited, skipping save attempt');
+      return;
+    }
+
+    // Check if data has actually changed
+    const currentDataString = getDataString(data);
+    if (currentDataString === lastSavedDataStringRef.current) {
+      console.log('No data changes detected, skipping save');
+      return;
+    }
+
+    lastSaveAttemptRef.current = now;
 
     try {
       setStatus('saving');
@@ -57,11 +104,12 @@ export function useAutoSave<T>({
       
       const result = await onSave(data);
       
-      const now = new Date();
-      setLastSaved(now);
+      const saveTime = new Date();
+      setLastSaved(saveTime);
       setStatus('saved');
       setSaveCount(prev => prev + 1);
       lastSavedDataRef.current = data;
+      lastSavedDataStringRef.current = currentDataString;
       retryCountRef.current = 0;
 
       // Handle draft ID if returned
@@ -84,8 +132,11 @@ export function useAutoSave<T>({
       console.error("Auto-save error:", err);
       onError?.(errorMessage);
 
-      // Implement retry logic with exponential backoff
-      if (!isRetry && retryCountRef.current < maxRetries) {
+      // Implement retry logic with exponential backoff for real errors (not validation errors)
+      if (!isRetry && retryCountRef.current < maxRetries && 
+          !errorMessage.includes("No meaningful data") &&
+          !errorMessage.includes("No changes detected") &&
+          !errorMessage.includes("rate limited")) {
         retryCountRef.current++;
         const retryDelay = Math.min(1000 * Math.pow(2, retryCountRef.current), 10000); // Max 10 seconds
         
@@ -95,7 +146,7 @@ export function useAutoSave<T>({
         }, retryDelay);
       }
     }
-  }, [data, onSave, enabled, status, onError, onSuccess, draftId]);
+  }, [data, onSave, enabled, status, onError, onSuccess, draftId, getDataString]);
 
   // Manual save function (no retry logic)
   const manualSave = useCallback(async () => {
@@ -113,14 +164,7 @@ export function useAutoSave<T>({
     // Skip auto-save on initial mount
     if (isInitialMount.current) {
       isInitialMount.current = false;
-      return;
-    }
-
-    // Skip if data hasn't changed since last save
-    if (
-      lastSavedDataRef.current &&
-      JSON.stringify(debouncedData) === JSON.stringify(lastSavedDataRef.current)
-    ) {
+      lastSavedDataStringRef.current = getDataString(debouncedData);
       return;
     }
 
@@ -134,8 +178,9 @@ export function useAutoSave<T>({
       return;
     }
 
+    // The save function now handles data change detection internally
     save(false);
-  }, [debouncedData, save]);
+  }, [debouncedData, save, getDataString]);
 
   // Cleanup retry timeout on unmount
   useEffect(() => {
@@ -158,7 +203,9 @@ export function useAutoSave<T>({
     setSaveCount(0);
     setDraftId(undefined);
     lastSavedDataRef.current = null;
+    lastSavedDataStringRef.current = '';
     retryCountRef.current = 0;
+    lastSaveAttemptRef.current = 0;
     
     if (retryTimeoutRef.current) {
       clearTimeout(retryTimeoutRef.current);

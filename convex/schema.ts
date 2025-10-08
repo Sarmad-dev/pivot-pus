@@ -300,6 +300,53 @@ const schema = defineSchema({
     .index("by_user_platform", ["userId", "platform"])
     .index("by_organization_platform", ["organizationId", "platform"])
     .index("by_status", ["status"]),
+
+  // Notifications table
+  notifications: defineTable({
+    userId: v.id("users"),
+    type: v.union(
+      v.literal("campaign_assignment"),
+      v.literal("campaign_created"),
+      v.literal("role_changed"),
+      v.literal("campaign_updated"),
+      v.literal("campaign_deleted"),
+      v.literal("team_member_added"),
+      v.literal("team_member_removed")
+    ),
+    title: v.string(),
+    message: v.string(),
+    campaignId: v.optional(v.id("campaigns")),
+    organizationId: v.id("organizations"),
+    metadata: v.optional(v.any()),
+    priority: v.union(v.literal("low"), v.literal("medium"), v.literal("high")),
+    read: v.boolean(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_user", ["userId"])
+    .index("by_organization", ["organizationId"])
+    .index("by_user_organization", ["userId", "organizationId"])
+    .index("by_user_read", ["userId", "read"])
+    .index("by_campaign", ["campaignId"])
+    .index("by_type", ["type"])
+    .index("by_created_at", ["createdAt"]),
+
+  // Email logs table for tracking sent emails
+  emailLogs: defineTable({
+    userId: v.id("users"),
+    email: v.string(),
+    template: v.string(),
+    subject: v.string(),
+    data: v.any(),
+    status: v.union(v.literal("sent"), v.literal("failed"), v.literal("pending")),
+    sentAt: v.number(),
+    error: v.optional(v.string()),
+  })
+    .index("by_user", ["userId"])
+    .index("by_email", ["email"])
+    .index("by_template", ["template"])
+    .index("by_status", ["status"])
+    .index("by_sent_at", ["sentAt"]),
 });
 
 export default schema;

@@ -13,6 +13,8 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import { Loader2, CheckCircle2, AlertCircle, ArrowLeft } from 'lucide-react';
+import { ImportProgressComponent } from './import/import-progress';
+import { OAuthErrorDisplay } from './import/oauth-error-display';
 
 interface GoogleCampaignImportProps {
   organizationId: Id<'organizations'>;
@@ -34,6 +36,8 @@ export function GoogleCampaignImport({
     toggleCampaignSelection,
     previewCampaigns,
     importSelectedCampaigns,
+    cancelImport,
+    retryFailedImports,
     reset,
     goBack,
   } = useGoogleImport(organizationId);
@@ -335,18 +339,37 @@ export function GoogleCampaignImport({
     );
   }
 
-  // Importing step
+  // Importing step with progress tracking
   if (state.step === 'importing') {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Importing Campaigns</CardTitle>
-        </CardHeader>
-        <CardContent className="flex flex-col items-center justify-center py-8">
-          <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
-          <p className="text-muted-foreground">Importing your campaigns, please wait...</p>
-        </CardContent>
-      </Card>
+      <div className="space-y-4">
+        <Card>
+          <CardHeader>
+            <CardTitle>Importing Campaigns</CardTitle>
+            <CardDescription>
+              Importing your selected campaigns from Google Ads
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {state.importProgress && (
+              <ImportProgressComponent
+                progress={state.importProgress}
+                onCancel={cancelImport}
+                onRetry={retryFailedImports}
+                showDetails={true}
+              />
+            )}
+            {!state.importProgress && (
+              <div className="flex flex-col items-center justify-center py-8">
+                <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
+                <p className="text-muted-foreground">
+                  Preparing import...
+                </p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
     );
   }
 
@@ -382,49 +405,85 @@ export function GoogleCampaignImport({
     );
   }
 
-  // Error step
+  // Error step with enhanced error handling
   if (state.step === 'error') {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <AlertCircle className="h-5 w-5 text-destructive" />
-            Import Error
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <Alert variant="destructive">
-            <AlertCircle className="h-4 w-4" />
-            <AlertDescription className="whitespace-pre-wrap">{state.error}</AlertDescription>
-          </Alert>
+      <div className="space-y-4">
+        {/* OAuth Error Display */}
+        {state.oauthError && (
+          <OAuthErrorDisplay
+            error={state.oauthError}
+            onRetry={() => {
+              if (state.oauthError?.retryable) {
+                // Retry the last action based on current state
+                if (state.customers.length === 0) {
+                  loadCustomers();
+                } else if (state.campaigns.length === 0 && state.selectedCustomerId) {
+                  selectCustomer(state.selectedCustomerId);
+                } else {
+                  importSelectedCampaigns();
+                }
+              }
+            }}
+            onReconnect={connect}
+            onCancel={onCancel}
+            showDetails={true}
+          />
+        )}
 
-          {state.importedCampaignIds.length > 0 && (
-            <Alert>
-              <AlertDescription>
-                {state.importedCampaignIds.length} campaign
-                {state.importedCampaignIds.length !== 1 ? 's' : ''} were successfully imported
-                before the error occurred.
-              </AlertDescription>
-            </Alert>
-          )}
+        {/* Import Progress with Errors */}
+        {state.importProgress && (
+          <ImportProgressComponent
+            progress={state.importProgress}
+            onRetry={retryFailedImports}
+            showDetails={true}
+          />
+        )}
 
-          <div className="flex gap-2">
-            <Button onClick={reset} variant="outline">
-              Try Again
-            </Button>
-            {state.importedCampaignIds.length > 0 && onComplete && (
-              <Button onClick={() => onComplete(state.importedCampaignIds)}>
-                View Imported Campaigns
-              </Button>
-            )}
-            {onCancel && (
-              <Button variant="outline" onClick={onCancel}>
-                Cancel
-              </Button>
-            )}
-          </div>
-        </CardContent>
-      </Card>
+        {/* General Error Display */}
+        {!state.oauthError && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <AlertCircle className="h-5 w-5 text-destructive" />
+                Import Error
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription className="whitespace-pre-wrap">{state.error}</AlertDescription>
+              </Alert>
+
+              {state.importedCampaignIds.length > 0 && (
+                <Alert>
+                  <AlertDescription>
+                    {state.importedCampaignIds.length} campaign
+                    {state.importedCampaignIds.length !== 1 ? 's' : ''} were successfully imported
+                    before the error occurred.
+                  </AlertDescription>
+                </Alert>
+              )}
+
+              <div className="flex gap-2">
+                <Button onClick={reset} variant="outline">
+                  Try Again
+                </Button>
+                {state.importedCampaignIds.length > 0 && onComplete && (
+                  <Button onClick={() => onComplete(state.importedCampaignIds)}>
+                    View Imported Campaigns
+                  </Button>
+                )}
+                {onCancel && (
+                  <Button variant="outline" onClick={onCancel}>
+                    Cancel
+                  </Button>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+      </div>
     );
   }
 

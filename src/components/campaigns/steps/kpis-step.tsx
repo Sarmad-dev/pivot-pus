@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { useFormContext, useFieldArray } from "react-hook-form";
-import { Plus, Trash2, Target, TrendingUp, BarChart3, Eye, DollarSign, MousePointer, Zap } from "lucide-react";
+import { Plus, Trash2, Target, TrendingUp, BarChart3, Eye, DollarSign, MousePointer, Zap, AlertTriangle, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -140,6 +140,63 @@ interface KPIsStepProps {
   className?: string;
 }
 
+// Helper function to check step completion
+export const isKPIsStepComplete = (data: KPIsMetrics): boolean => {
+  return !!(
+    data.primaryKPIs && 
+    data.primaryKPIs.length > 0 &&
+    data.primaryKPIs.every(kpi => 
+      kpi.target > 0 && 
+      kpi.weight > 0 && 
+      kpi.timeframe
+    )
+  );
+};
+
+// Validation function for wizard integration
+export const validateKPIsStep = (data: KPIsMetrics, campaignBudget: number): { isValid: boolean; errors: string[] } => {
+  const errors: string[] = [];
+  
+  // Validate KPI weights
+  const weightValidation = validateKPIWeights(data.primaryKPIs);
+  if (!weightValidation.isValid) {
+    errors.push(weightValidation.error || "KPI weight error");
+  }
+  
+  // Validate minimum KPI requirement
+  if (!data.primaryKPIs || data.primaryKPIs.length === 0) {
+    errors.push("At least one primary KPI is required");
+  }
+  
+  // Validate KPI targets
+  data.primaryKPIs?.forEach((kpi, index) => {
+    if (kpi.target <= 0) {
+      errors.push(`KPI ${index + 1}: Target must be greater than 0`);
+    }
+    if (kpi.weight <= 0) {
+      errors.push(`KPI ${index + 1}: Weight must be greater than 0`);
+    }
+  });
+  
+  // Validate custom metrics
+  data.customMetrics?.forEach((metric, index) => {
+    if (metric.name && metric.name.trim().length === 0) {
+      errors.push(`Custom metric ${index + 1}: Name cannot be empty`);
+    }
+    if (metric.target <= 0) {
+      errors.push(`Custom metric ${index + 1}: Target must be greater than 0`);
+    }
+    if (metric.unit && metric.unit.trim().length === 0) {
+      errors.push(`Custom metric ${index + 1}: Unit cannot be empty`);
+    }
+  });
+  
+  return {
+    isValid: errors.length === 0,
+    errors
+  };
+};
+
 export function KPIsStep({ className }: KPIsStepProps) {
   const form = useFormContext<{ 
     kpisMetrics: KPIsMetrics;
@@ -148,6 +205,7 @@ export function KPIsStep({ className }: KPIsStepProps) {
   }>();
   
   const [weightError, setWeightError] = useState<string | null>(null);
+  const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
   
   // Get campaign context for realistic validation
   const campaignBudget = form.watch("basics")?.budget || 0;
@@ -176,11 +234,57 @@ export function KPIsStep({ className }: KPIsStepProps) {
   // Watch for KPI weight changes
   const primaryKPIs = form.watch("kpisMetrics.primaryKPIs") || [];
   
-  // Validate KPI weights whenever they change
+  // Validate KPI weights and other requirements whenever they change
   useEffect(() => {
+    const errors: Record<string, string> = {};
+    
+    // Validate KPI weights
     const validation = validateKPIWeights(primaryKPIs);
     setWeightError(validation.isValid ? null : validation.error || null);
-  }, [primaryKPIs]);
+    
+    // Validate minimum KPI requirement
+    if (primaryKPIs.length === 0) {
+      errors.kpis = "At least one primary KPI is required";
+    }
+    
+    // Validate KPI targets are realistic
+    primaryKPIs.forEach((kpi, index) => {
+      if (kpi.target <= 0) {
+        errors[`kpi_${index}_target`] = "KPI target must be greater than 0";
+      }
+      
+      if (kpi.weight <= 0) {
+        errors[`kpi_${index}_weight`] = "KPI weight must be greater than 0";
+      }
+      
+      // Validate realistic targets based on budget
+      if (campaignBudget > 0) {
+        const kpiInfo = KPI_OPTIONS.find(k => k.type === kpi.type);
+        if (kpiInfo) {
+          const maxRealisticTarget = campaignBudget * kpiInfo.budgetMultiplier * 2; // Allow 2x multiplier for ambitious targets
+          if (kpi.target > maxRealisticTarget && kpiInfo.type !== 'roi' && kpiInfo.type !== 'brand_awareness') {
+            errors[`kpi_${index}_realistic`] = `Target may be unrealistic for your budget. Consider a target below ${Math.floor(maxRealisticTarget).toLocaleString()}`;
+          }
+        }
+      }
+    });
+    
+    // Validate custom metrics
+    const customMetrics = form.watch("kpisMetrics.customMetrics") || [];
+    customMetrics.forEach((metric, index) => {
+      if (metric.name && metric.name.trim().length === 0) {
+        errors[`metric_${index}_name`] = "Custom metric name cannot be empty";
+      }
+      if (metric.target <= 0) {
+        errors[`metric_${index}_target`] = "Custom metric target must be greater than 0";
+      }
+      if (metric.unit && metric.unit.trim().length === 0) {
+        errors[`metric_${index}_unit`] = "Custom metric unit cannot be empty";
+      }
+    });
+    
+    setValidationErrors(errors);
+  }, [primaryKPIs, campaignBudget, form]);
 
   // Initialize with default KPI if empty
   useEffect(() => {
@@ -246,6 +350,32 @@ export function KPIsStep({ className }: KPIsStepProps) {
 
   return (
     <div className={cn("space-y-6", className)}>
+      {/* Step Completion Status */}
+      {isKPIsStepComplete(form.watch("kpisMetrics") || { primaryKPIs: [], customMetrics: [], trackingSettings: {} }) && (
+        <Alert>
+          <Check className="h-4 w-4" />
+          <AlertDescription>
+            Step 3 is complete! You can proceed to the next step or continue making changes.
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {/* Validation Summary */}
+      {(weightError || Object.keys(validationErrors).length > 0) && (
+        <Alert variant="destructive">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertDescription>
+            <div className="space-y-1">
+              <p className="font-medium">Please fix the following issues:</p>
+              {weightError && <div>• {weightError}</div>}
+              {Object.entries(validationErrors).map(([key, error]) => (
+                <div key={key}>• {error}</div>
+              ))}
+            </div>
+          </AlertDescription>
+        </Alert>
+      )}
+
       {/* KPI Weight Overview */}
       <Card>
         <CardHeader>
@@ -285,10 +415,23 @@ export function KPIsStep({ className }: KPIsStepProps) {
             </Alert>
           )}
           
+          {Object.keys(validationErrors).length > 0 && (
+            <Alert className="mt-4" variant="destructive">
+              <AlertDescription>
+                <div className="space-y-1">
+                  {Object.entries(validationErrors).map(([key, error]) => (
+                    <div key={key}>• {error}</div>
+                  ))}
+                </div>
+              </AlertDescription>
+            </Alert>
+          )}
+          
           <div className="text-xs text-muted-foreground mt-2">
             <p>• Total KPI weights should not exceed 100%</p>
             <p>• Higher weights indicate more important metrics</p>
             <p>• Targets are suggested based on your budget and audience size</p>
+            <p>• At least one primary KPI is required to measure campaign success</p>
           </div>
         </CardContent>
       </Card>
@@ -529,6 +672,11 @@ function KPIForm({ index, onRemove, canRemove, campaignBudget, audienceSize }: K
                   </span>
                 </div>
               </FormControl>
+              {field.value > 0 && campaignBudget > 0 && (
+                <div className="text-xs text-muted-foreground">
+                  Estimated cost per {kpiInfo.unit.toLowerCase()}: ${(campaignBudget / field.value).toFixed(2)}
+                </div>
+              )}
               <FormMessage />
             </FormItem>
           )}
