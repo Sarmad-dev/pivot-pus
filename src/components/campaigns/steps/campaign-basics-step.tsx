@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, memo, useCallback, useMemo } from "react";
 import { useFormContext } from "react-hook-form";
-import { CalendarIcon, DollarSign, FileText, AlertCircle } from "lucide-react";
+import { CalendarIcon, DollarSign, FileText, AlertCircle, AlertTriangle } from "lucide-react";
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -29,6 +29,11 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { FieldValidation, commonValidationRules } from "../field-validation";
+import { useStepValidation } from "../../../hooks/use-campaign-validation";
+import type { ValidationIssue } from "../validation-summary";
+import { useOptimizedFormField } from "../../../hooks/use-performance";
+import { useKeyboardNavigation } from "../../../hooks/use-keyboard-navigation";
 import { cn } from "@/lib/utils";
 
 const CURRENCY_OPTIONS = [
@@ -51,7 +56,91 @@ const PRIORITY_OPTIONS = [
   { value: "high", label: "High Priority" },
 ];
 
-export function CampaignBasicsStep() {
+// Memoized currency selector component
+const CurrencySelector = memo(({ 
+  value, 
+  onChange, 
+  disabled 
+}: { 
+  value: string; 
+  onChange: (value: string) => void; 
+  disabled?: boolean; 
+}) => (
+  <Select onValueChange={onChange} value={value} disabled={disabled}>
+    <FormControl>
+      <SelectTrigger>
+        <SelectValue placeholder="Select currency" />
+      </SelectTrigger>
+    </FormControl>
+    <SelectContent>
+      {CURRENCY_OPTIONS.map((currency) => (
+        <SelectItem key={currency.value} value={currency.value}>
+          {currency.label}
+        </SelectItem>
+      ))}
+    </SelectContent>
+  </Select>
+));
+
+CurrencySelector.displayName = "CurrencySelector";
+
+// Memoized category selector component
+const CategorySelector = memo(({ 
+  value, 
+  onChange, 
+  disabled 
+}: { 
+  value: string; 
+  onChange: (value: string) => void; 
+  disabled?: boolean; 
+}) => (
+  <Select onValueChange={onChange} value={value} disabled={disabled}>
+    <FormControl>
+      <SelectTrigger>
+        <SelectValue placeholder="Select category" />
+      </SelectTrigger>
+    </FormControl>
+    <SelectContent>
+      {CATEGORY_OPTIONS.map((category) => (
+        <SelectItem key={category.value} value={category.value}>
+          {category.label}
+        </SelectItem>
+      ))}
+    </SelectContent>
+  </Select>
+));
+
+CategorySelector.displayName = "CategorySelector";
+
+// Memoized priority selector component
+const PrioritySelector = memo(({ 
+  value, 
+  onChange, 
+  disabled 
+}: { 
+  value: string; 
+  onChange: (value: string) => void; 
+  disabled?: boolean; 
+}) => (
+  <Select onValueChange={onChange} value={value} disabled={disabled}>
+    <FormControl>
+      <SelectTrigger>
+        <SelectValue placeholder="Select priority" />
+      </SelectTrigger>
+    </FormControl>
+    <SelectContent>
+      {PRIORITY_OPTIONS.map((priority) => (
+        <SelectItem key={priority.value} value={priority.value}>
+          {priority.label}
+        </SelectItem>
+      ))}
+    </SelectContent>
+  </Select>
+));
+
+PrioritySelector.displayName = "PrioritySelector";
+
+export const CampaignBasicsStep = memo(function CampaignBasicsStep() {
   const {
     control,
     watch,
@@ -61,9 +150,39 @@ export function CampaignBasicsStep() {
   const [endDateOpen, setEndDateOpen] = useState(false);
 
   const watchedValues = watch("basics");
-  const selectedCurrency = watchedValues?.currency || "USD";
-  const currencySymbol =
-    CURRENCY_OPTIONS.find((c) => c.value === selectedCurrency)?.symbol || "$";
+  
+  // Memoize currency symbol calculation
+  const currencySymbol = useMemo(() => {
+    const selectedCurrency = watchedValues?.currency || "USD";
+    return CURRENCY_OPTIONS.find((c) => c.value === selectedCurrency)?.symbol || "$";
+  }, [watchedValues?.currency]);
+
+  // Step validation status
+  const stepValidation = useStepValidation(1);
+
+  // Keyboard navigation for date pickers
+  const { handleKeyDown: handleStartDateKeyDown } = useKeyboardNavigation({
+    onEnter: () => setStartDateOpen(true),
+    onEscape: () => setStartDateOpen(false),
+  });
+
+  const { handleKeyDown: handleEndDateKeyDown } = useKeyboardNavigation({
+    onEnter: () => setEndDateOpen(true),
+    onEscape: () => setEndDateOpen(false),
+  });
+
+  // Optimized date handlers
+  const handleStartDateSelect = useCallback((date: Date | undefined) => {
+    if (date) {
+      setStartDateOpen(false);
+    }
+  }, []);
+
+  const handleEndDateSelect = useCallback((date: Date | undefined) => {
+    if (date) {
+      setEndDateOpen(false);
+    }
+  }, []);
 
   return (
     <div className="space-y-6">
@@ -83,13 +202,22 @@ export function CampaignBasicsStep() {
               <FormItem>
                 <FormLabel>Campaign Name *</FormLabel>
                 <FormControl>
-                  <Input
-                    placeholder="Enter campaign name"
-                    {...field}
-                    className={cn(
-                      (errors.basics as any)?.name && "border-red-500"
-                    )}
-                  />
+                  <FieldValidation
+                    fieldName="basics.name"
+                    rules={[
+                      commonValidationRules.required("Campaign name"),
+                      commonValidationRules.minLength(3, "Campaign name"),
+                      commonValidationRules.maxLength(100, "Campaign name"),
+                    ]}
+                  >
+                    <Input
+                      placeholder="Enter campaign name"
+                      {...field}
+                      className={cn(
+                        (errors.basics as any)?.name && "border-red-500"
+                      )}
+                    />
+                  </FieldValidation>
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -103,14 +231,23 @@ export function CampaignBasicsStep() {
               <FormItem>
                 <FormLabel>Description *</FormLabel>
                 <FormControl>
-                  <Textarea
-                    placeholder="Describe your campaign objectives..."
-                    className={cn(
-                      "min-h-[100px]",
-                      (errors.basics as any)?.description && "border-red-500"
-                    )}
-                    {...field}
-                  />
+                  <FieldValidation
+                    fieldName="basics.description"
+                    rules={[
+                      commonValidationRules.required("Description"),
+                      commonValidationRules.minLength(10, "Description"),
+                      commonValidationRules.maxLength(1000, "Description"),
+                    ]}
+                  >
+                    <Textarea
+                      placeholder="Describe your campaign objectives..."
+                      className={cn(
+                        "min-h-[100px]",
+                        (errors.basics as any)?.description && "border-red-500"
+                      )}
+                      {...field}
+                    />
+                  </FieldValidation>
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -124,20 +261,10 @@ export function CampaignBasicsStep() {
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Category *</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select category" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {CATEGORY_OPTIONS.map((category) => (
-                        <SelectItem key={category.value} value={category.value}>
-                          {category.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <CategorySelector
+                    value={field.value}
+                    onChange={field.onChange}
+                  />
                   <FormMessage />
                 </FormItem>
               )}
@@ -149,20 +276,10 @@ export function CampaignBasicsStep() {
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Priority *</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select priority" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {PRIORITY_OPTIONS.map((priority) => (
-                        <SelectItem key={priority.value} value={priority.value}>
-                          {priority.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <PrioritySelector
+                    value={field.value}
+                    onChange={field.onChange}
+                  />
                   <FormMessage />
                 </FormItem>
               )}
@@ -211,7 +328,7 @@ export function CampaignBasicsStep() {
                         }
                         onSelect={(date) => {
                           field.onChange(date);
-                          setStartDateOpen(false);
+                          handleStartDateSelect(date);
                         }}
                         disabled={(date) => date < new Date()}
                         initialFocus
@@ -253,7 +370,7 @@ export function CampaignBasicsStep() {
                         }
                         onSelect={(date) => {
                           field.onChange(date);
-                          setEndDateOpen(false);
+                          handleEndDateSelect(date);
                         }}
                         disabled={(date) => {
                           const startDate = watchedValues?.startDate;
@@ -289,20 +406,10 @@ export function CampaignBasicsStep() {
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Currency *</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select currency" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {CURRENCY_OPTIONS.map((currency) => (
-                        <SelectItem key={currency.value} value={currency.value}>
-                          {currency.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <CurrencySelector
+                    value={field.value}
+                    onChange={field.onChange}
+                  />
                   <FormMessage />
                 </FormItem>
               )}
@@ -315,20 +422,37 @@ export function CampaignBasicsStep() {
                 <FormItem>
                   <FormLabel>Total Budget *</FormLabel>
                   <FormControl>
-                    <div className="relative">
-                      <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground">
-                        {currencySymbol}
-                      </span>
-                      <Input
-                        type="number"
-                        placeholder="0.00"
-                        className="pl-8"
-                        {...field}
-                        onChange={(e) =>
-                          field.onChange(parseFloat(e.target.value) || 0)
-                        }
-                      />
-                    </div>
+                    <FieldValidation
+                      fieldName="basics.budget"
+                      rules={[
+                        commonValidationRules.required("Budget"),
+                        commonValidationRules.positiveNumber("Budget"),
+                        {
+                          name: "budgetRange",
+                          severity: "warning",
+                          validate: (value) => ({
+                            isValid: !value || value <= 10000000,
+                            message: value > 10000000 ? "Budget exceeds recommended maximum of $10,000,000" : undefined,
+                            suggestion: value > 1000000 ? "Consider breaking large campaigns into smaller phases" : undefined,
+                          }),
+                        },
+                      ]}
+                    >
+                      <div className="relative">
+                        <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground">
+                          {currencySymbol}
+                        </span>
+                        <Input
+                          type="number"
+                          placeholder="0.00"
+                          className="pl-8"
+                          {...field}
+                          onChange={(e) =>
+                            field.onChange(parseFloat(e.target.value) || 0)
+                          }
+                        />
+                      </div>
+                    </FieldValidation>
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -337,6 +461,33 @@ export function CampaignBasicsStep() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Step Validation Summary */}
+      {stepValidation.issues.length > 0 && (
+        <Alert className="border-blue-200 bg-blue-50">
+          <AlertTriangle className="h-4 w-4 text-blue-500" />
+          <AlertDescription>
+            <div className="space-y-2">
+              <p className="font-medium text-blue-800">
+                Step 1 Validation Status: {stepValidation.isValid ? "Valid" : "Issues Found"}
+              </p>
+              <div className="text-sm text-blue-700">
+                {stepValidation.issues.filter((issue: ValidationIssue) => issue.severity === "error").length > 0 && (
+                  <p>• {stepValidation.issues.filter((issue: ValidationIssue) => issue.severity === "error").length} error{stepValidation.issues.filter((issue: ValidationIssue) => issue.severity === "error").length !== 1 ? "s" : ""} must be fixed</p>
+                )}
+                {stepValidation.issues.filter((issue: ValidationIssue) => issue.severity === "warning").length > 0 && (
+                  <p>• {stepValidation.issues.filter((issue: ValidationIssue) => issue.severity === "warning").length} warning{stepValidation.issues.filter((issue: ValidationIssue) => issue.severity === "warning").length !== 1 ? "s" : ""} to review</p>
+                )}
+                <p className="mt-1">
+                  {stepValidation.canProceed 
+                    ? "✓ You can proceed to the next step" 
+                    : "⚠ Please fix errors before proceeding"}
+                </p>
+              </div>
+            </div>
+          </AlertDescription>
+        </Alert>
+      )}
     </div>
   );
-}
+});

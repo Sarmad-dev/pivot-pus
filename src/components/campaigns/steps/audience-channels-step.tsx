@@ -2,21 +2,44 @@
 
 import React, { useState, useEffect, useMemo } from "react";
 import { useFormContext, useFieldArray } from "react-hook-form";
-import { Plus, Trash2, Users, Target, DollarSign, MapPin, Heart, User } from "lucide-react";
+import {
+  Plus,
+  Trash2,
+  Users,
+  Target,
+  DollarSign,
+  MapPin,
+  Heart,
+  User,
+  AlertTriangle,
+  Check,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { FormField, FormItem, FormLabel, FormControl, FormMessage } from "@/components/ui/form";
+import {
+  FormField,
+  FormItem,
+  FormLabel,
+  FormControl,
+  FormMessage,
+} from "@/components/ui/form";
 import { cn } from "@/lib/utils";
-import { 
+import {
   type AudienceChannels,
-  validateBudgetAllocation 
+  validateBudgetAllocation,
 } from "@/lib/validations/campaign";
 
 // Channel configuration with display information
@@ -97,33 +120,140 @@ const CHANNEL_OPTIONS = [
 
 // Common interests for audience targeting
 const INTEREST_SUGGESTIONS = [
-  "Technology", "Fashion", "Travel", "Food & Dining", "Fitness & Health",
-  "Business & Finance", "Entertainment", "Sports", "Education", "Art & Design",
-  "Music", "Gaming", "Automotive", "Real Estate", "Parenting", "Pets",
-  "Home & Garden", "Beauty & Cosmetics", "Books & Literature", "Photography"
+  "Technology",
+  "Fashion",
+  "Travel",
+  "Food & Dining",
+  "Fitness & Health",
+  "Business & Finance",
+  "Entertainment",
+  "Sports",
+  "Education",
+  "Art & Design",
+  "Music",
+  "Gaming",
+  "Automotive",
+  "Real Estate",
+  "Parenting",
+  "Pets",
+  "Home & Garden",
+  "Beauty & Cosmetics",
+  "Books & Literature",
+  "Photography",
 ];
 
 // Common locations for targeting
 const LOCATION_SUGGESTIONS = [
-  "United States", "Canada", "United Kingdom", "Australia", "Germany",
-  "France", "Japan", "Brazil", "India", "Mexico", "Spain", "Italy",
-  "Netherlands", "Sweden", "Norway", "Denmark", "Switzerland"
+  "United States",
+  "Canada",
+  "United Kingdom",
+  "Australia",
+  "Germany",
+  "France",
+  "Japan",
+  "Brazil",
+  "India",
+  "Mexico",
+  "Spain",
+  "Italy",
+  "Netherlands",
+  "Sweden",
+  "Norway",
+  "Denmark",
+  "Switzerland",
 ];
 
 interface AudienceChannelsStepProps {
   className?: string;
 }
 
+// Helper function to check step completion
+export const isAudienceChannelsStepComplete = (
+  data: AudienceChannels
+): boolean => {
+  return !!(
+    data.audiences &&
+    data.audiences.length > 0 &&
+    data.channels &&
+    data.channels.some((channel) => channel.enabled) &&
+    data.audiences.every(
+      (audience) =>
+        audience.name &&
+        audience.name.trim().length > 0 &&
+        audience.demographics.location &&
+        audience.demographics.location.length > 0
+    )
+  );
+};
+
+// Validation function for wizard integration
+export const validateAudienceChannelsStep = (
+  data: AudienceChannels,
+  campaignBudget: number
+): { isValid: boolean; errors: string[] } => {
+  const errors: string[] = [];
+
+  // Validate budget allocation
+  const budgetValidation = validateBudgetAllocation(
+    campaignBudget,
+    data.budgetAllocation
+  );
+  if (!budgetValidation.isValid) {
+    errors.push(budgetValidation.error || "Budget allocation error");
+  }
+
+  // Validate audiences
+  if (!data.audiences || data.audiences.length === 0) {
+    errors.push("At least one audience segment is required");
+  }
+
+  data.audiences?.forEach((audience, index) => {
+    if (!audience.name || audience.name.trim().length === 0) {
+      errors.push(`Audience ${index + 1}: Name is required`);
+    }
+    if (
+      !audience.demographics.location ||
+      audience.demographics.location.length === 0
+    ) {
+      errors.push(`Audience ${index + 1}: At least one location is required`);
+    }
+  });
+
+  // Validate channels
+  const enabledChannels =
+    data.channels?.filter((channel) => channel.enabled) || [];
+  if (enabledChannels.length === 0) {
+    errors.push("At least one channel must be enabled");
+  }
+
+  enabledChannels.forEach((channel, index) => {
+    const channelInfo = CHANNEL_OPTIONS.find((c) => c.type === channel.type);
+    if (channelInfo && channel.budget < channelInfo.minBudget) {
+      errors.push(
+        `${channelInfo.name}: Minimum budget of $${channelInfo.minBudget} required`
+      );
+    }
+  });
+
+  return {
+    isValid: errors.length === 0,
+    errors,
+  };
+};
+
 export function AudienceChannelsStep({ className }: AudienceChannelsStepProps) {
-  const form = useFormContext<{ 
+  const form = useFormContext<{
     audienceChannels: AudienceChannels;
     basics?: { budget: number };
   }>();
   const [budgetError, setBudgetError] = useState<string | null>(null);
-  
+  const [validationErrors, setValidationErrors] = useState<
+    Record<string, string>
+  >({});
+
   // Get campaign budget from basics step
-  const campaignBudget = (form.watch("basics")?.budget) || 0;
-  
+  const campaignBudget = form.watch("basics")?.budget || 0;
+
   // Field arrays for dynamic forms
   const {
     fields: audienceFields,
@@ -144,19 +274,62 @@ export function AudienceChannelsStep({ className }: AudienceChannelsStepProps) {
   });
 
   // Watch for budget allocation changes
-  const budgetAllocation = useMemo(() => 
-    form.watch("audienceChannels.budgetAllocation") || {}, 
+  const budgetAllocation = useMemo(
+    () => form.watch("audienceChannels.budgetAllocation") || {},
     [form]
   );
   const channels = form.watch("audienceChannels.channels") || [];
 
   // Validate budget allocation whenever it changes
   useEffect(() => {
+    const errors: Record<string, string> = {};
+
     if (campaignBudget > 0) {
-      const validation = validateBudgetAllocation(campaignBudget, budgetAllocation);
+      const validation = validateBudgetAllocation(
+        campaignBudget,
+        budgetAllocation
+      );
       setBudgetError(validation.isValid ? null : validation.error || null);
+
+      // Additional validation for enabled channels
+      const enabledChannels = channels.filter((channel) => channel.enabled);
+      if (enabledChannels.length === 0) {
+        errors.channels = "At least one channel must be enabled";
+      }
+
+      // Validate minimum budgets for paid channels
+      enabledChannels.forEach((channel, index) => {
+        const channelInfo = CHANNEL_OPTIONS.find(
+          (c) => c.type === channel.type
+        );
+        if (channelInfo && channel.budget < channelInfo.minBudget) {
+          errors[`channel_${index}`] =
+            `${channelInfo.name} requires minimum budget of $${channelInfo.minBudget}`;
+        }
+      });
     }
-  }, [campaignBudget, budgetAllocation]);
+
+    // Validate audience segments
+    const audiences = form.watch("audienceChannels.audiences") || [];
+    if (audiences.length === 0) {
+      errors.audiences = "At least one audience segment is required";
+    }
+
+    audiences.forEach((audience, index) => {
+      if (!audience.name || audience.name.trim().length === 0) {
+        errors[`audience_${index}_name`] = "Audience name is required";
+      }
+      if (
+        !audience.demographics.location ||
+        audience.demographics.location.length === 0
+      ) {
+        errors[`audience_${index}_location`] =
+          "At least one location is required";
+      }
+    });
+
+    setValidationErrors(errors);
+  }, [campaignBudget, budgetAllocation, channels, form]);
 
   // Initialize with default audience and channels if empty
   useEffect(() => {
@@ -178,10 +351,19 @@ export function AudienceChannelsStep({ className }: AudienceChannelsStepProps) {
       // Add some default channels
       const defaultChannels = ["facebook", "instagram", "email"];
       defaultChannels.forEach((channelType) => {
-        const channelInfo = CHANNEL_OPTIONS.find(c => c.type === channelType);
+        const channelInfo = CHANNEL_OPTIONS.find((c) => c.type === channelType);
         if (channelInfo) {
           appendChannel({
-            type: channelType as "facebook" | "instagram" | "twitter" | "linkedin" | "email" | "content" | "pr" | "google_ads" | "youtube",
+            type: channelType as
+              | "facebook"
+              | "instagram"
+              | "twitter"
+              | "linkedin"
+              | "email"
+              | "content"
+              | "pr"
+              | "google_ads"
+              | "youtube",
             enabled: false,
             budget: 0,
             settings: {},
@@ -189,20 +371,28 @@ export function AudienceChannelsStep({ className }: AudienceChannelsStepProps) {
         }
       });
     }
-  }, [audienceFields.length, channelFields.length, appendAudience, appendChannel]);
+  }, [
+    audienceFields.length,
+    channelFields.length,
+    appendAudience,
+    appendChannel,
+  ]);
 
   // Handle channel enable/disable
   const handleChannelToggle = (index: number, enabled: boolean) => {
     form.setValue(`audienceChannels.channels.${index}.enabled`, enabled);
-    
+
     const channelType = channels[index]?.type;
     if (channelType) {
       if (enabled) {
         // Set minimum budget when enabling
-        const channelInfo = CHANNEL_OPTIONS.find(c => c.type === channelType);
+        const channelInfo = CHANNEL_OPTIONS.find((c) => c.type === channelType);
         const minBudget = channelInfo?.minBudget || 0;
         form.setValue(`audienceChannels.channels.${index}.budget`, minBudget);
-        form.setValue(`audienceChannels.budgetAllocation.${channelType}`, minBudget);
+        form.setValue(
+          `audienceChannels.budgetAllocation.${channelType}`,
+          minBudget
+        );
       } else {
         // Clear budget when disabling
         form.setValue(`audienceChannels.channels.${index}.budget`, 0);
@@ -214,7 +404,7 @@ export function AudienceChannelsStep({ className }: AudienceChannelsStepProps) {
   // Handle budget allocation changes
   const handleBudgetChange = (channelType: string, budget: number) => {
     // Update both channel budget and allocation
-    const channelIndex = channels.findIndex(c => c.type === channelType);
+    const channelIndex = channels.findIndex((c) => c.type === channelType);
     if (channelIndex >= 0) {
       form.setValue(`audienceChannels.channels.${channelIndex}.budget`, budget);
     }
@@ -222,7 +412,10 @@ export function AudienceChannelsStep({ className }: AudienceChannelsStepProps) {
   };
 
   // Calculate total allocated budget
-  const totalAllocated = Object.values(budgetAllocation).reduce((sum, amount) => sum + (Number(amount) || 0), 0);
+  const totalAllocated = Object.values(budgetAllocation).reduce(
+    (sum, amount) => sum + (Number(amount) || 0),
+    0
+  );
   const remainingBudget = campaignBudget - totalAllocated;
 
   // Add new audience segment
@@ -242,10 +435,19 @@ export function AudienceChannelsStep({ className }: AudienceChannelsStepProps) {
 
   // Add new channel
   const addChannel = (channelType: string) => {
-    const channelInfo = CHANNEL_OPTIONS.find(c => c.type === channelType);
-    if (channelInfo && !channels.find(c => c.type === channelType)) {
+    const channelInfo = CHANNEL_OPTIONS.find((c) => c.type === channelType);
+    if (channelInfo && !channels.find((c) => c.type === channelType)) {
       appendChannel({
-        type: channelType as "facebook" | "instagram" | "twitter" | "linkedin" | "email" | "content" | "pr" | "google_ads" | "youtube",
+        type: channelType as
+          | "facebook"
+          | "instagram"
+          | "twitter"
+          | "linkedin"
+          | "email"
+          | "content"
+          | "pr"
+          | "google_ads"
+          | "youtube",
         enabled: false,
         budget: 0,
         settings: {},
@@ -255,6 +457,39 @@ export function AudienceChannelsStep({ className }: AudienceChannelsStepProps) {
 
   return (
     <div className={cn("space-y-6", className)}>
+      {/* Step Completion Status */}
+      {isAudienceChannelsStepComplete(
+        form.watch("audienceChannels") || {
+          audiences: [],
+          channels: [],
+          budgetAllocation: {},
+        }
+      ) && (
+        <Alert>
+          <Check className="h-4 w-4" />
+          <AlertDescription>
+            Step 2 is complete! You can proceed to the next step or continue
+            making changes.
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {/* Validation Summary */}
+      {(budgetError || Object.keys(validationErrors).length > 0) && (
+        <Alert variant="destructive">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertDescription>
+            <div className="space-y-1">
+              <p className="font-medium">Please fix the following issues:</p>
+              {budgetError && <div>• {budgetError}</div>}
+              {Object.entries(validationErrors).map(([key, error]) => (
+                <div key={key}>• {error}</div>
+              ))}
+            </div>
+          </AlertDescription>
+        </Alert>
+      )}
+
       {/* Budget Overview */}
       <Card>
         <CardHeader>
@@ -278,19 +513,33 @@ export function AudienceChannelsStep({ className }: AudienceChannelsStepProps) {
               <p className="text-sm text-muted-foreground">Allocated</p>
             </div>
             <div>
-              <p className={cn(
-                "text-2xl font-bold",
-                remainingBudget < 0 ? "text-red-600" : "text-blue-600"
-              )}>
+              <p
+                className={cn(
+                  "text-2xl font-bold",
+                  remainingBudget < 0 ? "text-red-600" : "text-blue-600"
+                )}
+              >
                 ${remainingBudget.toLocaleString()}
               </p>
               <p className="text-sm text-muted-foreground">Remaining</p>
             </div>
           </div>
-          
+
           {budgetError && (
             <Alert className="mt-4" variant="destructive">
               <AlertDescription>{budgetError}</AlertDescription>
+            </Alert>
+          )}
+
+          {Object.keys(validationErrors).length > 0 && (
+            <Alert className="mt-4" variant="destructive">
+              <AlertDescription>
+                <div className="space-y-1">
+                  {Object.entries(validationErrors).map(([key, error]) => (
+                    <div key={key}>• {error}</div>
+                  ))}
+                </div>
+              </AlertDescription>
             </Alert>
           )}
         </CardContent>
@@ -323,6 +572,7 @@ export function AudienceChannelsStep({ className }: AudienceChannelsStepProps) {
               index={index}
               onRemove={() => removeAudience(index)}
               canRemove={audienceFields.length > 1}
+              validationErrors={validationErrors}
             />
           ))}
         </CardContent>
@@ -341,16 +591,16 @@ export function AudienceChannelsStep({ className }: AudienceChannelsStepProps) {
                 <SelectValue placeholder="Add Channel" />
               </SelectTrigger>
               <SelectContent>
-                {CHANNEL_OPTIONS
-                  .filter(option => !channels.find(c => c.type === option.type))
-                  .map((option) => (
-                    <SelectItem key={option.type} value={option.type}>
-                      <div className="flex items-center gap-2">
-                        <span>{option.icon}</span>
-                        <span>{option.name}</span>
-                      </div>
-                    </SelectItem>
-                  ))}
+                {CHANNEL_OPTIONS.filter(
+                  (option) => !channels.find((c) => c.type === option.type)
+                ).map((option) => (
+                  <SelectItem key={option.type} value={option.type}>
+                    <div className="flex items-center gap-2">
+                      <span>{option.icon}</span>
+                      <span>{option.name}</span>
+                    </div>
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
@@ -369,6 +619,8 @@ export function AudienceChannelsStep({ className }: AudienceChannelsStepProps) {
                 }
               }}
               canRemove={channelFields.length > 1}
+              validationErrors={validationErrors}
+              campaignBudget={campaignBudget}
             />
           ))}
         </CardContent>
@@ -382,16 +634,28 @@ interface AudienceSegmentFormProps {
   index: number;
   onRemove: () => void;
   canRemove: boolean;
+  validationErrors?: Record<string, string>;
 }
 
-function AudienceSegmentForm({ index, onRemove, canRemove }: AudienceSegmentFormProps) {
+function AudienceSegmentForm({
+  index,
+  onRemove,
+  canRemove,
+  validationErrors = {},
+}: AudienceSegmentFormProps) {
   const form = useFormContext();
   const [interestInput, setInterestInput] = useState("");
   const [locationInput, setLocationInput] = useState("");
 
-  const interests = form.watch(`audienceChannels.audiences.${index}.demographics.interests`) || [];
-  const locations = form.watch(`audienceChannels.audiences.${index}.demographics.location`) || [];
-  const ageRange = form.watch(`audienceChannels.audiences.${index}.demographics.ageRange`) || [25, 45];
+  const interests =
+    form.watch(`audienceChannels.audiences.${index}.demographics.interests`) ||
+    [];
+  const locations =
+    form.watch(`audienceChannels.audiences.${index}.demographics.location`) ||
+    [];
+  const ageRange = form.watch(
+    `audienceChannels.audiences.${index}.demographics.ageRange`
+  ) || [25, 45];
 
   const addInterest = (interest: string) => {
     if (interest && !interests.includes(interest)) {
@@ -440,10 +704,19 @@ function AudienceSegmentForm({ index, onRemove, canRemove }: AudienceSegmentForm
                   <Input
                     {...field}
                     placeholder="Audience segment name"
-                    className="text-lg font-medium"
+                    className={cn(
+                      "text-lg font-medium",
+                      validationErrors[`audience_${index}_name`] &&
+                        "border-red-500"
+                    )}
                   />
                 </FormControl>
                 <FormMessage />
+                {validationErrors[`audience_${index}_name`] && (
+                  <p className="text-sm text-red-600">
+                    {validationErrors[`audience_${index}_name`]}
+                  </p>
+                )}
               </FormItem>
             )}
           />
@@ -469,8 +742,11 @@ function AudienceSegmentForm({ index, onRemove, canRemove }: AudienceSegmentForm
           </Label>
           <Slider
             value={ageRange}
-            onValueChange={(value) => 
-              form.setValue(`audienceChannels.audiences.${index}.demographics.ageRange`, value as [number, number])
+            onValueChange={(value) =>
+              form.setValue(
+                `audienceChannels.audiences.${index}.demographics.ageRange`,
+                value as [number, number]
+              )
             }
             min={13}
             max={100}
@@ -628,7 +904,11 @@ function AudienceSegmentForm({ index, onRemove, canRemove }: AudienceSegmentForm
                   {...field}
                   type="number"
                   placeholder="e.g., 50000"
-                  onChange={(e) => field.onChange(e.target.value ? Number(e.target.value) : undefined)}
+                  onChange={(e) =>
+                    field.onChange(
+                      e.target.value ? Number(e.target.value) : undefined
+                    )
+                  }
                 />
               </FormControl>
               <FormMessage />
@@ -647,20 +927,24 @@ interface ChannelConfigFormProps {
   onToggle: (enabled: boolean) => void;
   onBudgetChange: (budget: number) => void;
   canRemove: boolean;
+  validationErrors?: Record<string, string>;
+  campaignBudget?: number;
 }
 
-function ChannelConfigForm({ 
-  index, 
-  onRemove, 
-  onToggle, 
-  onBudgetChange, 
-  canRemove 
+function ChannelConfigForm({
+  index,
+  onRemove,
+  onToggle,
+  onBudgetChange,
+  canRemove,
+  validationErrors = {},
+  campaignBudget = 0,
 }: ChannelConfigFormProps) {
   const form = useFormContext();
-  
+
   const channel = form.watch(`audienceChannels.channels.${index}`);
-  const channelInfo = CHANNEL_OPTIONS.find(c => c.type === channel?.type);
-  
+  const channelInfo = CHANNEL_OPTIONS.find((c) => c.type === channel?.type);
+
   if (!channelInfo) return null;
 
   return (
@@ -671,7 +955,9 @@ function ChannelConfigForm({
             <span className="text-2xl">{channelInfo.icon}</span>
             <div>
               <h4 className="font-medium">{channelInfo.name}</h4>
-              <p className="text-sm text-muted-foreground">{channelInfo.description}</p>
+              <p className="text-sm text-muted-foreground">
+                {channelInfo.description}
+              </p>
             </div>
           </div>
           <div className="flex items-center gap-2">

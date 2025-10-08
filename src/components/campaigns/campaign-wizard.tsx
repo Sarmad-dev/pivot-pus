@@ -1,13 +1,12 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import React, { useState, useCallback, useMemo, memo } from "react";
 import { useForm, FormProvider } from "react-hook-form";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { ChevronLeft, ChevronRight, Save, Check, AlertTriangle } from "lucide-react";
+import { ChevronLeft, ChevronRight, Save, Check, AlertTriangle, CheckCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAutoSave } from "@/hooks/use-auto-save";
 import { useCampaignDrafts } from "@/hooks/use-campaign-drafts";
@@ -15,13 +14,19 @@ import { useCampaignDraft } from "@/hooks/use-campaign-draft";
 import { useCampaignCreation } from "@/hooks/use-campaign-creation";
 import { useOrganization } from "@/contexts/organization-context";
 import { SaveStatusIndicator } from "./save-status-indicator";
+import { ValidationSummary } from "./validation-summary";
+import { FormErrorHandler, createFormError, type FormError } from "./form-error-handler";
+import { useCampaignValidation } from "@/hooks/use-campaign-validation";
+import { ErrorBoundary } from "@/components/ui/error-boundary";
+import { LoadingOverlay, CampaignWizardSkeleton } from "@/components/ui/loading-states";
+import { useKeyboardNavigation, useAnnouncer } from "@/hooks/use-keyboard-navigation";
+import { useRenderPerformance } from "@/hooks/use-performance";
 import {
   campaignStep1Schema,
   campaignStep2Schema,
   campaignStep3Schema,
   campaignStep4Schema,
   completeCampaignSchema,
-  validateCampaignStep,
   type CampaignBasics,
   type AudienceChannels,
   type KPIsMetrics,
@@ -95,6 +100,111 @@ interface CampaignWizardProps {
   className?: string;
 }
 
+// Memoized step component to prevent unnecessary re-renders
+const MemoizedStepComponent = memo(({ 
+  step, 
+  currentStep 
+}: { 
+  step: number; 
+  currentStep: number; 
+}) => {
+  switch (step) {
+    case 1:
+      return currentStep === 1 ? <CampaignBasicsStep /> : null;
+    case 2:
+      return currentStep === 2 ? <AudienceChannelsStep /> : null;
+    case 3:
+      return currentStep === 3 ? <KPIsStep /> : null;
+    case 4:
+      return currentStep === 4 ? <TeamAccessStep /> : null;
+    case 5:
+      return currentStep === 5 ? <CampaignPreview /> : null;
+    default:
+      return null;
+  }
+});
+
+MemoizedStepComponent.displayName = "MemoizedStepComponent";
+
+// Memoized navigation component
+const WizardNavigation = memo(({ 
+  currentStep, 
+  completedSteps, 
+  onStepClick, 
+  onNext, 
+  onPrevious, 
+  isLoading 
+}: {
+  currentStep: number;
+  completedSteps: Set<number>;
+  onStepClick: (step: number) => void;
+  onNext: () => void;
+  onPrevious: () => void;
+  isLoading: boolean;
+}) => {
+  const { handleKeyDown } = useKeyboardNavigation({
+    onArrowLeft: currentStep > 1 ? onPrevious : undefined,
+    onArrowRight: currentStep < WIZARD_STEPS.length ? onNext : undefined,
+    onEnter: currentStep < WIZARD_STEPS.length ? onNext : undefined,
+  });
+
+  const handleKeyDownWrapper = useCallback((event: React.KeyboardEvent<HTMLDivElement>) => {
+    handleKeyDown(event.nativeEvent);
+  }, [handleKeyDown]);
+
+  return (
+    <div 
+      className="flex items-center justify-between"
+      onKeyDown={handleKeyDownWrapper}
+      role="navigation"
+      aria-label="Wizard steps"
+    >
+      {WIZARD_STEPS.map((step, index) => (
+        <React.Fragment key={step.id}>
+          <div className="flex flex-col items-center space-y-2">
+            <button
+              onClick={() => onStepClick(step.id)}
+              disabled={isLoading}
+              className={cn(
+                "flex h-10 w-10 items-center justify-center rounded-full border-2 text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
+                currentStep === step.id
+                  ? "border-primary bg-primary text-primary-foreground"
+                  : completedSteps.has(step.id)
+                    ? "border-green-500 bg-green-500 text-white"
+                    : "border-muted-foreground/25 bg-background text-muted-foreground hover:border-muted-foreground/50"
+              )}
+              aria-current={currentStep === step.id ? "step" : undefined}
+              aria-label={`Step ${step.id}: ${step.title}${completedSteps.has(step.id) ? " (completed)" : ""}`}
+            >
+              {completedSteps.has(step.id) ? (
+                <Check className="h-5 w-5" />
+              ) : (
+                step.id
+              )}
+            </button>
+            <div className="text-center">
+              <p className="text-sm font-medium">{step.title}</p>
+              <p className="text-xs text-muted-foreground hidden sm:block">
+                {step.description}
+              </p>
+            </div>
+          </div>
+          {index < WIZARD_STEPS.length - 1 && (
+            <Separator
+              className={cn(
+                "flex-1 mx-4",
+                completedSteps.has(step.id) ? "bg-green-500" : "bg-muted"
+              )}
+            />
+          )}
+        </React.Fragment>
+      ))}
+    </div>
+  );
+});
+
+WizardNavigation.displayName = "WizardNavigation";
+
 export function CampaignWizard({
   mode = "create",
   draftId,
@@ -104,9 +214,17 @@ export function CampaignWizard({
   onLoadDraft,
   className,
 }: CampaignWizardProps) {
+  // Performance monitoring
+  const performanceMetrics = useRenderPerformance("CampaignWizard");
+  
+  // Accessibility announcements
+  const { announce } = useAnnouncer();
+
   const [currentStep, setCurrentStep] = useState(1);
   const [completedSteps, setCompletedSteps] = useState<Set<number>>(new Set());
   const [isLoading, setIsLoading] = useState(false);
+  const [formError, setFormError] = useState<FormError | null>(null);
+  const [showValidationSummary, setShowValidationSummary] = useState(false);
 
   // Get organization context
   const { currentOrganization, isLoading: orgLoading } = useOrganization();
@@ -155,8 +273,13 @@ export function CampaignWizard({
     mode: "onChange",
   });
 
-  const { watch, getValues } = form;
+  const { watch, getValues, formState } = form;
+  
+  // Use formState.isDirty and getValues() instead of watch() to prevent infinite loops
   const watchedData = watch();
+
+  // Enhanced validation system
+  const validation = useCampaignValidation();
 
   // Draft management hooks (must be declared before useAutoSave)
   const { createAutoSaveHandler } = useCampaignDrafts({
@@ -176,12 +299,14 @@ export function CampaignWizard({
       toast.success("Campaign created", {
         description: "Your campaign has been created successfully!",
       });
+      announce("Campaign created successfully", "polite");
       onComplete?.(campaignId);
     },
     onError: (error) => {
       toast.error("Creation failed", {
         description: error,
       });
+      announce("Campaign creation failed", "assertive");
     },
   });
 
@@ -190,6 +315,7 @@ export function CampaignWizard({
   const [lastSaveTime, setLastSaveTime] = useState<number>(0);
   const [lastSavedData, setLastSavedData] = useState<string>("");
   const [hasUserInteracted, setHasUserInteracted] = useState(false);
+  const [autoSaveEnabled, setAutoSaveEnabled] = useState(false);
 
   // Helper function to check if data has meaningfully changed
   const hasMeaningfulData = useCallback((data: any) => {
@@ -223,7 +349,25 @@ export function CampaignWizard({
           return false;
         }
 
-        const newDataString = JSON.stringify(newData);
+        // Create a stable string representation by sorting keys and handling dates
+        const normalizeData = (obj: any): any => {
+          if (obj instanceof Date) {
+            return obj.getTime();
+          }
+          if (Array.isArray(obj)) {
+            return obj.map(normalizeData);
+          }
+          if (obj && typeof obj === 'object') {
+            const normalized: any = {};
+            Object.keys(obj).sort().forEach(key => {
+              normalized[key] = normalizeData(obj[key]);
+            });
+            return normalized;
+          }
+          return obj;
+        };
+
+        const newDataString = JSON.stringify(normalizeData(newData));
         const hasChanged = newDataString !== lastSavedData;
         return hasChanged;
       } catch (error) {
@@ -278,31 +422,82 @@ export function CampaignWizard({
   }, []);
 
   // Track user interaction to prevent auto-save on initial page load
-  // Since auto-save is disabled, we don't need to track this aggressively
   const handleUserInteraction = useCallback(() => {
     if (!hasUserInteracted) {
       setHasUserInteracted(true);
+      // Enable auto-save after first user interaction
+      setAutoSaveEnabled(true);
     }
   }, [hasUserInteracted]);
 
-  // Create a stable data object for auto-save (since auto-save is disabled, this won't be used)
-  const autoSaveData = useMemo(
-    () => ({
-      data: {}, // Empty object since auto-save is disabled
-      step: currentStep,
-    }),
-    [currentStep]
-  );
+  // Create a stable data object for auto-save with proper memoization
+  const autoSaveData = useMemo(() => {
+    // Only create auto-save data if user has interacted and we have meaningful data
+    if (!hasUserInteracted || !autoSaveEnabled) {
+      return { data: {}, step: currentStep };
+    }
 
-  // Optimized auto-save functionality with smart timing
+    const currentData = getValues();
+    
+    // Only include data if it's meaningful to prevent unnecessary saves
+    if (!hasMeaningfulData(currentData)) {
+      return { data: {}, step: currentStep };
+    }
+
+    return {
+      data: currentData,
+      step: currentStep,
+    };
+  }, [currentStep, hasUserInteracted, autoSaveEnabled, formState.isDirty, getValues, hasMeaningfulData]);
+
+  // Optimized auto-save functionality with smart timing and loop prevention
   const autoSaveStatus = useAutoSave({
     data: autoSaveData,
     onSave: async ({ data, step }) => {
-      // Auto-save is temporarily disabled to prevent infinite loops
-      throw new Error("Auto-save temporarily disabled");
+      // Prevent auto-save on preview step
+      if (step === 5) {
+        throw new Error("Cannot auto-save on preview step");
+      }
+
+      // Check if we have meaningful data to save
+      if (!hasMeaningfulData(data)) {
+        throw new Error("No meaningful data to save");
+      }
+
+      // Check if data has actually changed since last save
+      if (!hasDataChanged(data)) {
+        throw new Error("No changes detected since last save");
+      }
+
+      // Rate limiting: prevent saves too close together
+      const now = Date.now();
+      const timeSinceLastSave = now - lastSaveTime;
+      const minInterval = hasInitialSave ? AUTO_SAVE_CONFIG.SUBSEQUENT_DELAY : AUTO_SAVE_CONFIG.INITIAL_DELAY;
+      
+      if (timeSinceLastSave < minInterval) {
+        throw new Error(`Auto-save rate limited. Please wait ${Math.ceil((minInterval - timeSinceLastSave) / 1000)} seconds.`);
+      }
+
+      if (!organizationId || !createAutoSaveHandler) {
+        throw new Error("Missing organization or save handler");
+      }
+
+      const draftName = data.basics?.name
+        ? `${data.basics.name} - Draft`
+        : "Campaign Draft";
+
+      const handler = createAutoSaveHandler(step, draftName, undefined);
+      const result = await handler({ data, step });
+
+      // Update tracking state
+      setLastSaveTime(now);
+      setLastSavedData(JSON.stringify(data));
+      setHasInitialSave(true);
+
+      return result;
     },
-    enabled: false, // Temporarily disable auto-save to fix infinite loop
-    delay: AUTO_SAVE_CONFIG.INITIAL_DELAY, // Use configured delay
+    enabled: autoSaveEnabled && !!organizationId && !!createAutoSaveHandler,
+    delay: hasInitialSave ? AUTO_SAVE_CONFIG.SUBSEQUENT_DELAY : AUTO_SAVE_CONFIG.INITIAL_DELAY,
     onError: (error) => {
       // Only show error toast for meaningful errors (not empty data or rate limiting)
       if (
@@ -337,152 +532,134 @@ export function CampaignWizard({
     },
   });
 
-  // Load draft data on mount
-  useEffect(() => {
-    if (loadedDraft && !loadedDraft.isExpired) {
-      try {
-        const mergedData = mergeWithDefaults(loadedDraft.data);
-        form.reset(mergedData);
-        setCurrentStep(loadedDraft.step);
-
-        // Mark completed steps based on loaded data
-        const completed = new Set<number>();
-        if (loadedDraft.data.basics) completed.add(1);
-        if (loadedDraft.data.audienceChannels) completed.add(2);
-        if (loadedDraft.data.kpisMetrics) completed.add(3);
-        if (loadedDraft.data.teamAccess) completed.add(4);
-        setCompletedSteps(completed);
-
-        toast.success("Draft loaded", {
-          description: "Your saved progress has been restored.",
-        });
-
-        // Mark as user interacted since we loaded a draft
-        setHasUserInteracted(true);
-      } catch {
-        toast.error("Error loading draft", {
-          description: "Failed to load saved progress. Starting fresh.",
-        });
-      }
-    }
-  }, [form]);
-
-  // Legacy draft loading (kept for backward compatibility)
-  useEffect(() => {
-    const loadDraftData = async () => {
-      if (draftId && onLoadDraft && !loadedDraft) {
-        try {
-          setIsLoading(true);
-          const { data, step } = await onLoadDraft(draftId);
-          const mergedData = mergeWithDefaults(data);
-          form.reset(mergedData);
-          setCurrentStep(step);
-
-          // Mark completed steps based on loaded data
-          const completed = new Set<number>();
-          if (data.basics) completed.add(1);
-          if (data.audienceChannels) completed.add(2);
-          if (data.kpisMetrics) completed.add(3);
-          if (data.teamAccess) completed.add(4);
-          setCompletedSteps(completed);
-
-          toast.success("Draft loaded", {
-            description: "Your saved progress has been restored.",
-          });
-
-          // Mark as user interacted since we loaded a draft
-          setHasUserInteracted(true);
-        } catch {
-          toast.error("Error loading draft", {
-            description: "Failed to load saved progress. Starting fresh.",
-          });
-        } finally {
-          setIsLoading(false);
-        }
-      }
-    };
-
-    loadDraftData();
-  }, [draftId, onLoadDraft, form, loadedDraft]);
-
-  // Validate current step
+  // Enhanced step validation with comprehensive error handling
   const validateCurrentStep = async (): Promise<boolean> => {
-    const stepData = getCurrentStepData();
-    if (!stepData) return false;
-
-    const validation = validateCampaignStep(currentStep, stepData);
-
-    if (!validation.success) {
-      // Set form errors
-      validation.error.issues.forEach((issue) => {
-        const fieldPath = issue.path.join(".");
-        form.setError(fieldPath as keyof CampaignFormData, {
-          type: "manual",
-          message: issue.message,
-        });
-      });
+    try {
+      setFormError(null); // Clear any previous errors
+      
+      const isValid = await validation.validateStep(currentStep);
+      
+      if (!isValid) {
+        const stepIssues = validation.getStepIssues(currentStep);
+        const errorIssues = stepIssues.filter(issue => issue.severity === "error");
+        
+        if (errorIssues.length > 0) {
+          setFormError(createFormError(
+            "validation",
+            `Step ${currentStep} has ${errorIssues.length} validation error${errorIssues.length !== 1 ? "s" : ""}`,
+            {
+              details: errorIssues.map(issue => `${issue.field}: ${issue.message}`).join("\n"),
+              step: currentStep,
+              retryable: false,
+            }
+          ));
+        }
+        
+        // Show validation summary for better UX
+        setShowValidationSummary(true);
+      }
+      
+      return isValid;
+    } catch (error) {
+      console.error("Step validation error:", error);
+      setFormError(createFormError(
+        "unknown",
+        "An error occurred during validation",
+        {
+          details: error instanceof Error ? error.message : "Unknown validation error",
+          step: currentStep,
+          retryable: true,
+        }
+      ));
       return false;
     }
-
-    return true;
   };
 
-  // Get current step data
-  const getCurrentStepData = () => {
-    const data = getValues();
-    switch (currentStep) {
-      case 1:
-        return data.basics;
-      case 2:
-        return data.audienceChannels;
-      case 3:
-        return data.kpisMetrics;
-      case 4:
-        return data.teamAccess;
-      default:
-        return null;
-    }
-  };
-
-  // Navigation handlers
-  const handleNext = async () => {
-    // Skip validation for preview step (step 5)
-    if (currentStep < 5) {
-      const isValid = await validateCurrentStep();
-      if (!isValid) {
-        toast.error("Validation Error", {
-          description: "Please fix the errors before proceeding.",
-        });
-        return;
+  // Enhanced navigation handlers with comprehensive validation and accessibility
+  const handleNext = useCallback(async () => {
+    try {
+      setFormError(null);
+      
+      // Skip validation for preview step (step 5)
+      if (currentStep < 5) {
+        const isValid = await validateCurrentStep();
+        if (!isValid) {
+          toast.error("Validation Error", {
+            description: "Please fix the validation issues before proceeding.",
+          });
+          announce("Validation errors found. Please fix them before proceeding.", "assertive");
+          return;
+        }
       }
+
+      // Mark current step as completed
+      setCompletedSteps((prev) => new Set([...prev, currentStep]));
+      setShowValidationSummary(false); // Hide validation summary on successful navigation
+
+      if (currentStep < WIZARD_STEPS.length) {
+        const nextStep = currentStep + 1;
+        setCurrentStep(nextStep);
+        announce(`Moved to step ${nextStep}: ${WIZARD_STEPS[nextStep - 1]?.title}`, "polite");
+      }
+    } catch (error) {
+      console.error("Navigation error:", error);
+      const errorMessage = "An error occurred while navigating to the next step";
+      setFormError(createFormError(
+        "unknown",
+        errorMessage,
+        {
+          details: error instanceof Error ? error.message : "Unknown navigation error",
+          step: currentStep,
+          retryable: true,
+        }
+      ));
+      announce(errorMessage, "assertive");
     }
+  }, [currentStep, validateCurrentStep, announce]);
 
-    // Mark current step as completed
-    setCompletedSteps((prev) => new Set([...prev, currentStep]));
-
-    if (currentStep < WIZARD_STEPS.length) {
-      setCurrentStep(currentStep + 1);
-    }
-  };
-
-  const handlePrevious = () => {
+  const handlePrevious = useCallback(() => {
     if (currentStep > 1) {
-      setCurrentStep(currentStep - 1);
+      const prevStep = currentStep - 1;
+      setCurrentStep(prevStep);
+      announce(`Moved to step ${prevStep}: ${WIZARD_STEPS[prevStep - 1]?.title}`, "polite");
     }
-  };
+  }, [currentStep, announce]);
 
-  const handleStepClick = (step: number) => {
-    // Allow navigation to any step that's completed or the next step
-    // Also allow navigation to preview step (5) if all previous steps are completed
-    if (
-      completedSteps.has(step) ||
-      step === Math.min(...Array.from(completedSteps)) + 1 ||
-      step === 1 ||
-      (step === 5 && completedSteps.has(4))
-    ) {
-      setCurrentStep(step);
+  const handleStepClick = useCallback((step: number) => {
+    try {
+      setFormError(null);
+      
+      // Enhanced step navigation with validation checks
+      const canNavigate = validation.canProceedToStep(step) || 
+                         completedSteps.has(step) || 
+                         step === 1 ||
+                         (step === 5 && completedSteps.has(4));
+      
+      if (canNavigate) {
+        setCurrentStep(step);
+        setShowValidationSummary(false); // Hide validation summary when navigating
+        announce(`Navigated to step ${step}: ${WIZARD_STEPS[step - 1]?.title}`, "polite");
+      } else {
+        const message = `Please complete the previous steps before accessing Step ${step}.`;
+        toast.error("Navigation Restricted", {
+          description: message,
+        });
+        announce(message, "assertive");
+      }
+    } catch (error) {
+      console.error("Step navigation error:", error);
+      const errorMessage = "An error occurred while navigating between steps";
+      setFormError(createFormError(
+        "unknown",
+        errorMessage,
+        {
+          details: error instanceof Error ? error.message : "Unknown navigation error",
+          retryable: true,
+        }
+      ));
+      announce(errorMessage, "assertive");
     }
-  };
+  }, [validation, completedSteps, announce]);
 
   // Manual save function
   const handleManualSave = useCallback(async () => {
@@ -519,6 +696,7 @@ export function CampaignWizard({
       toast.success("Draft saved", {
         description: "Your progress has been saved successfully.",
       });
+      announce("Draft saved successfully", "polite");
     } catch (error) {
       toast.error("Save failed", {
         description:
@@ -531,63 +709,124 @@ export function CampaignWizard({
     getValues,
     hasMeaningfulData,
     currentStep,
+    announce,
   ]);
 
-  // Complete campaign creation
+  // Enhanced campaign creation with comprehensive error handling and retry mechanism
   const handleComplete = async () => {
     if (!organizationId) {
-      toast.error("Error", {
-        description: "Organization ID is required to create a campaign.",
-      });
+      setFormError(createFormError(
+        "validation",
+        "Organization ID is required to create a campaign",
+        { retryable: false }
+      ));
       return;
     }
 
     try {
       setIsLoading(true);
+      setFormError(null);
+      
       const formData = getValues();
 
-      // Validate complete campaign data
-      const validation = completeCampaignSchema.safeParse(formData);
-      if (!validation.success) {
-        toast.error("Validation Error", {
-          description:
-            "Please fix all validation issues before creating the campaign.",
-        });
+      // Comprehensive validation before creation
+      const completeValidation = validation.validateComplete();
+      if (!completeValidation.isValid) {
+        setFormError(createFormError(
+          "validation",
+          `Campaign has ${completeValidation.issues.length} validation issue${completeValidation.issues.length !== 1 ? "s" : ""}`,
+          {
+            details: completeValidation.issues.map(issue => `${issue.field}: ${issue.message}`).join("\n"),
+            retryable: false,
+          }
+        ));
+        setShowValidationSummary(true);
+        return;
+      }
+
+      // Final schema validation
+      const schemaValidation = completeCampaignSchema.safeParse(formData);
+      if (!schemaValidation.success) {
+        setFormError(createFormError(
+          "validation",
+          "Campaign data validation failed",
+          {
+            details: schemaValidation.error.issues.map(issue => `${issue.path.join(".")}: ${issue.message}`).join("\n"),
+            retryable: false,
+          }
+        ));
         return;
       }
 
       // Prepare data for Convex by converting dates to timestamps
       const campaignDataForConvex = {
-        ...validation.data,
+        ...schemaValidation.data,
         basics: {
-          ...validation.data.basics,
-          startDate: validation.data.basics.startDate.getTime(),
-          endDate: validation.data.basics.endDate.getTime(),
+          ...schemaValidation.data.basics,
+          startDate: schemaValidation.data.basics.startDate.getTime(),
+          endDate: schemaValidation.data.basics.endDate.getTime(),
         },
       };
 
       // Create the campaign using the Convex mutation
       await createCampaign(campaignDataForConvex, organizationId as any);
+      
+      // Success is handled by the hook's onSuccess callback
     } catch (error) {
-      // Error handling is done in the hook
       console.error("Campaign creation error:", error);
+      
+      // Determine error type and create appropriate FormError
+      let errorType: FormError["type"] = "unknown";
+      let retryable = true;
+      
+      if (error instanceof Error) {
+        if (error.message.includes("network") || error.message.includes("fetch")) {
+          errorType = "network";
+        } else if (error.message.includes("timeout")) {
+          errorType = "timeout";
+        } else if (error.message.includes("500") || error.message.includes("server")) {
+          errorType = "server";
+        } else if (error.message.includes("validation")) {
+          errorType = "validation";
+          retryable = false;
+        }
+      }
+      
+      setFormError(createFormError(
+        errorType,
+        "Failed to create campaign",
+        {
+          details: error instanceof Error ? error.message : "Unknown error occurred",
+          retryable,
+        }
+      ));
     } finally {
       setIsLoading(false);
     }
   };
 
+  // Retry handler for form errors
+  const handleRetry = useCallback(async () => {
+    if (formError?.type === "validation") {
+      // For validation errors, just clear the error and show validation summary
+      setFormError(null);
+      setShowValidationSummary(true);
+      return;
+    }
+    
+    // For other errors, retry the last action
+    if (currentStep === 5) {
+      await handleComplete();
+    } else {
+      await validateCurrentStep();
+    }
+  }, [formError, currentStep]);
+
   // Calculate progress
   const progress = (completedSteps.size / WIZARD_STEPS.length) * 100;
 
   if (isLoading || isDraftLoading || orgLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-muted-foreground">Loading campaign wizard...</p>
-        </div>
-      </div>
-    );
+    return <CampaignWizardSkeleton />;
   }
 
   // Show error if no organization is available
@@ -604,202 +843,169 @@ export function CampaignWizard({
   }
 
   return (
-    <div className={cn("max-w-4xl mx-auto space-y-6", className)}>
-      {/* Header */}
-      <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold">
-              {mode === "create"
-                ? "Create Campaign"
-                : mode === "edit"
-                  ? "Edit Campaign"
-                  : "Import Campaign"}
-            </h1>
-            <p className="text-muted-foreground">
-              {WIZARD_STEPS[currentStep - 1]?.description}
-            </p>
+    <ErrorBoundary
+      onError={(error, errorInfo) => {
+        console.error("CampaignWizard Error:", error, errorInfo);
+        announce("An unexpected error occurred in the campaign wizard", "assertive");
+      }}
+      showDetails={process.env.NODE_ENV === 'development'}
+    >
+      <LoadingOverlay 
+        isLoading={isLoading} 
+        message="Processing campaign..."
+        className={cn("max-w-4xl mx-auto space-y-6", className)}
+      >
+        <FormProvider {...form}>
+          {/* Skip links for accessibility */}
+          <div className="sr-only">
+            <a href="#wizard-content" className="focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-50 focus:px-4 focus:py-2 focus:bg-primary focus:text-primary-foreground focus:rounded-md">
+              Skip to wizard content
+            </a>
           </div>
 
-          {/* Save status */}
-          <SaveStatusIndicator
-            autoSaveStatus={autoSaveStatus}
-            onManualSave={handleManualSave}
-            onClearError={autoSaveStatus.clearError}
-            showSaveCount={true}
-          />
-        </div>
+          {/* Header */}
+          <header className="space-y-4" role="banner">
+            <div className="flex items-center justify-between">
+              <div>
+                <h1 className="text-3xl font-bold" id="wizard-title">
+                  {mode === "create"
+                    ? "Create Campaign"
+                    : mode === "edit"
+                      ? "Edit Campaign"
+                      : "Import Campaign"}
+                </h1>
+                <p className="text-muted-foreground" id="wizard-description">
+                  {WIZARD_STEPS[currentStep - 1]?.description}
+                </p>
+              </div>
 
-        {/* Progress bar */}
-        <div className="space-y-2">
-          <div className="flex justify-between text-sm">
-            <span>Progress</span>
-            <span>{Math.round(progress)}% complete</span>
-          </div>
-          <Progress value={progress} className="h-2" />
-        </div>
-      </div>
+              {/* Save status */}
+              <SaveStatusIndicator
+                autoSaveStatus={autoSaveStatus}
+                onManualSave={handleManualSave}
+                onClearError={autoSaveStatus.clearError}
+                showSaveCount={true}
+              />
+            </div>
 
-      {/* Step navigation */}
-      <Card>
-        <CardHeader className="pb-4">
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-lg">Steps</CardTitle>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={async () => {
-                try {
-                  await autoSaveStatus.save();
-                  toast.success("Draft saved", {
-                    description: "Your progress has been saved successfully.",
-                  });
-                } catch (error) {
-                  // Error handling is already done in the auto-save hook
-                }
-              }}
-              disabled={
-                autoSaveStatus.isSaving || currentStep === 5 || !organizationId
-              }
-            >
-              <Save className="h-4 w-4 mr-2" />
-              {autoSaveStatus.isSaving ? "Saving..." : "Save Draft"}
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center justify-between">
-            {WIZARD_STEPS.map((step, index) => (
-              <React.Fragment key={step.id}>
-                <div className="flex flex-col items-center space-y-2">
-                  <button
-                    onClick={() => handleStepClick(step.id)}
-                    disabled={
-                      !completedSteps.has(step.id) &&
-                      step.id !== currentStep &&
-                      step.id !== 1
-                    }
-                    className={cn(
-                      "w-10 h-10 rounded-full border-2 flex items-center justify-center text-sm font-medium transition-colors",
-                      {
-                        "bg-primary text-primary-foreground border-primary":
-                          step.id === currentStep,
-                        "bg-green-500 text-white border-green-500":
-                          completedSteps.has(step.id),
-                        "border-muted-foreground text-muted-foreground":
-                          step.id !== currentStep &&
-                          !completedSteps.has(step.id),
-                        "hover:border-primary hover:text-primary cursor-pointer":
-                          completedSteps.has(step.id) ||
-                          step.id === currentStep ||
-                          step.id === 1,
-                        "cursor-not-allowed opacity-50":
-                          !completedSteps.has(step.id) &&
-                          step.id !== currentStep &&
-                          step.id !== 1,
-                      }
-                    )}
-                  >
-                    {completedSteps.has(step.id) ? (
-                      <Check className="h-5 w-5" />
-                    ) : (
-                      step.id
-                    )}
-                  </button>
-                  <div className="text-center">
-                    <p className="text-sm font-medium">{step.title}</p>
-                    <Badge
-                      variant={
-                        step.id === currentStep
-                          ? "default"
-                          : completedSteps.has(step.id)
-                            ? "secondary"
-                            : "outline"
-                      }
-                      className="text-xs"
-                    >
-                      Step {step.id}
-                    </Badge>
-                  </div>
-                </div>
+            {/* Progress bar */}
+            <div className="space-y-2" role="progressbar" aria-valuenow={Math.round(progress)} aria-valuemin={0} aria-valuemax={100}>
+              <div className="flex justify-between text-sm">
+                <span>Progress</span>
+                <span>{Math.round(progress)}% complete</span>
+              </div>
+              <Progress value={progress} className="h-2" aria-label={`Campaign creation progress: ${Math.round(progress)}% complete`} />
+            </div>
+          </header>
 
-                {index < WIZARD_STEPS.length - 1 && (
-                  <Separator
-                    orientation="horizontal"
-                    className={cn(
-                      "flex-1 mx-4",
-                      completedSteps.has(step.id) ? "bg-green-500" : "bg-muted"
-                    )}
-                  />
-                )}
-              </React.Fragment>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
+          {/* Form error display */}
+          {formError && (
+            <FormErrorHandler
+              error={formError}
+              onRetry={handleRetry}
+              onDismiss={() => setFormError(null)}
+            />
+          )}
 
-      {/* Step content */}
-      <FormProvider {...form}>
-        {currentStep === 5 ? (
-          // Preview step uses its own layout
-          <CampaignPreview
-            data={watchedData}
-            onEdit={(step) => setCurrentStep(step)}
-            onBack={() => setCurrentStep(4)}
-            onCreate={handleComplete}
-            isCreating={isLoading}
-          />
-        ) : (
-          // Regular wizard steps use card layout
+          {/* Validation summary */}
+          {showValidationSummary && (
+            <ValidationSummary
+              issues={validation.getStepIssues(currentStep)}
+              onNavigateToStep={handleStepClick}
+            />
+          )}
+
+          {/* Step navigation */}
           <Card>
-            <CardHeader>
-              <CardTitle>{WIZARD_STEPS[currentStep - 1]?.title}</CardTitle>
+            <CardHeader className="pb-4">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-lg">Steps</CardTitle>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={async () => {
+                    try {
+                      await autoSaveStatus.save();
+                      toast.success("Draft saved", {
+                        description: "Your progress has been saved successfully.",
+                      });
+                      announce("Draft saved successfully", "polite");
+                    } catch (error) {
+                      // Error handling is already done in the auto-save hook
+                    }
+                  }}
+                  disabled={
+                    autoSaveStatus.isSaving || currentStep === 5 || !organizationId
+                  }
+                  aria-label="Save current progress as draft"
+                >
+                  <Save className="h-4 w-4 mr-2" />
+                  {autoSaveStatus.isSaving ? "Saving..." : "Save Draft"}
+                </Button>
+              </div>
             </CardHeader>
-            <CardContent className="space-y-6">
-              {currentStep === 1 && <CampaignBasicsStep />}
-              {currentStep === 2 && <AudienceChannelsStep />}
-              {currentStep === 3 && <KPIsStep />}
-              {currentStep === 4 && <TeamAccessStep />}
+            <CardContent>
+              <WizardNavigation
+                currentStep={currentStep}
+                completedSteps={completedSteps}
+                onStepClick={handleStepClick}
+                onNext={handleNext}
+                onPrevious={handlePrevious}
+                isLoading={isLoading}
+              />
             </CardContent>
           </Card>
-        )}
-      </FormProvider>
 
-      {/* Navigation buttons - only show for non-preview steps */}
-      {currentStep !== 5 && (
-        <div className="flex items-center justify-between">
-          <Button
-            variant="outline"
-            onClick={handlePrevious}
-            disabled={currentStep === 1}
-          >
-            <ChevronLeft className="h-4 w-4 mr-2" />
-            Previous
-          </Button>
+          {/* Main wizard content */}
+          <main id="wizard-content" role="main" aria-labelledby="wizard-title" aria-describedby="wizard-description">
+            <MemoizedStepComponent step={currentStep} currentStep={currentStep} />
+          </main>
 
-          <div className="flex items-center gap-2">
-            {currentStep === 4 ? (
-              <Button
-                onClick={handleNext}
-                disabled={isLoading}
-                className="min-w-[120px]"
-              >
-                Preview Campaign
-                <ChevronRight className="h-4 w-4 ml-2" />
-              </Button>
-            ) : (
-              <Button
-                onClick={handleNext}
-                disabled={isLoading}
-                className="min-w-[120px]"
-              >
-                Next
-                <ChevronRight className="h-4 w-4 ml-2" />
-              </Button>
-            )}
-          </div>
-        </div>
-      )}
-    </div>
+          {/* Navigation buttons */}
+          <nav className="flex justify-between pt-6" role="navigation" aria-label="Wizard navigation">
+            <Button
+              variant="outline"
+              onClick={handlePrevious}
+              disabled={currentStep === 1 || isLoading}
+              aria-label={`Go to previous step${currentStep > 1 ? `: ${WIZARD_STEPS[currentStep - 2]?.title}` : ""}`}
+            >
+              <ChevronLeft className="h-4 w-4 mr-2" />
+              Previous
+            </Button>
+
+            <div className="flex gap-2">
+              {currentStep < WIZARD_STEPS.length ? (
+                <Button 
+                  onClick={handleNext} 
+                  disabled={isLoading}
+                  aria-label={`Go to next step: ${WIZARD_STEPS[currentStep]?.title}`}
+                >
+                  Next
+                  <ChevronRight className="h-4 w-4 ml-2" />
+                </Button>
+              ) : (
+                <Button 
+                  onClick={handleComplete} 
+                  disabled={isLoading}
+                  aria-label="Create campaign with current settings"
+                >
+                  {isLoading ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                      Creating...
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle className="h-4 w-4 mr-2" />
+                      Create Campaign
+                    </>
+                  )}
+                </Button>
+              )}
+            </div>
+          </nav>
+        </FormProvider>
+      </LoadingOverlay>
+    </ErrorBoundary>
   );
 }

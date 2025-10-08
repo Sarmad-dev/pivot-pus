@@ -23,10 +23,13 @@ import type * as campaigns_queries from "../campaigns/queries.js";
 import type * as campaigns_validation from "../campaigns/validation.js";
 import type * as campaigns_verify from "../campaigns/verify.js";
 import type * as crons from "../crons.js";
+import type * as emailService from "../emailService.js";
 import type * as http from "../http.js";
 import type * as lib_encryption from "../lib/encryption.js";
 import type * as migrations from "../migrations.js";
+import type * as notifications from "../notifications.js";
 import type * as organizations from "../organizations.js";
+import type * as permissions from "../permissions.js";
 import type * as platformConnections from "../platformConnections.js";
 import type * as users from "../users.js";
 
@@ -49,10 +52,13 @@ declare const fullApi: ApiFromModules<{
   "campaigns/validation": typeof campaigns_validation;
   "campaigns/verify": typeof campaigns_verify;
   crons: typeof crons;
+  emailService: typeof emailService;
   http: typeof http;
   "lib/encryption": typeof lib_encryption;
   migrations: typeof migrations;
+  notifications: typeof notifications;
   organizations: typeof organizations;
+  permissions: typeof permissions;
   platformConnections: typeof platformConnections;
   users: typeof users;
 }>;

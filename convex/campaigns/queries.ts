@@ -1,9 +1,10 @@
 import { query } from "../_generated/server";
 import { v } from "convex/values";
 import { Id } from "../_generated/dataModel";
-import { canViewCampaign, isDraftExpired } from "./helpers";
+import { isDraftExpired } from "./helpers";
 import { getOrCreateUserProfile } from "../users";
-// Note: We now use getOrCreateUserProfile which works with the users table
+import { canViewCampaign, getUserCampaignRole } from "../permissions";
+// Note: We now use getOrCreateUserProfile which works with the users table and new permission system
 
 // Get organization by slug
 export const getOrganizationBySlug = query({
@@ -413,29 +414,26 @@ export const getUserCampaignPermissions = query({
       throw new Error("Campaign not found");
     }
 
-    const isCreator = campaign.createdBy === userId;
-    const teamMember = campaign.teamMembers.find(
-      (member) => member.userId === userId
-    );
-    const isClient = campaign.clients.some(
-      (client) => client.userId === userId
-    );
+    const { role, isCreator } = getUserCampaignRole(userId, campaign);
 
     return {
-      canView: isCreator || !!teamMember || isClient,
-      canEdit:
+      canView: canViewCampaign(userId, campaign),
+      canEdit: 
         isCreator ||
-        teamMember?.role === "owner" ||
-        teamMember?.role === "editor",
-      canDelete: isCreator || teamMember?.role === "owner",
-      canManageTeam: isCreator || teamMember?.role === "owner",
+        role === "owner" ||
+        role === "editor",
+      canDelete: isCreator || role === "owner",
+      canManageTeam: isCreator || role === "owner",
       canManageClients:
         isCreator ||
-        teamMember?.role === "owner" ||
-        teamMember?.role === "editor",
-      role: isCreator
-        ? "creator"
-        : teamMember?.role || (isClient ? "client" : null),
+        role === "owner" ||
+        role === "editor",
+      canPublish:
+        isCreator ||
+        role === "owner" ||
+        role === "editor",
+      role: isCreator ? "creator" : role,
+      isCreator,
     };
   },
 });
