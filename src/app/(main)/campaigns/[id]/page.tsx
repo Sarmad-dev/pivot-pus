@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery } from "convex/react";
 import { api } from "@/../convex/_generated/api";
 import { useParams, useRouter } from "next/navigation";
@@ -8,15 +8,16 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { 
-  ArrowLeft, 
-  Edit, 
-  Users, 
-  Target, 
-  DollarSign, 
+import {
+  ArrowLeft,
+  Edit,
+  Users,
+  Target,
+  DollarSign,
   Calendar,
   BarChart3,
-  Settings
+  Settings,
+  Brain,
 } from "lucide-react";
 import Link from "next/link";
 import { formatDistanceToNow } from "date-fns";
@@ -26,6 +27,8 @@ import { CampaignOverview } from "@/components/campaigns/campaign-overview";
 import { CampaignTeamManagement } from "@/components/campaigns/campaign-team-management";
 import { CampaignMetrics } from "@/components/campaigns/campaign-metrics";
 import { CampaignSettings } from "@/components/campaigns/campaign-settings";
+import { SimulationTrigger } from "@/components/simulations/SimulationTrigger";
+import { SimulationHistory } from "@/components/simulations/SimulationHistory";
 import { toast } from "sonner";
 import { useMutation } from "convex/react";
 import { CampaignStatus } from "@/types/campaign";
@@ -37,11 +40,19 @@ const CampaignDetailPage = () => {
   const campaignId = params.id as Id<"campaigns">;
   const [activeTab, setActiveTab] = useState("overview");
 
+  // Check for simulation tab in URL params
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const tab = urlParams.get("tab");
+    if (tab === "simulations") {
+      setActiveTab("simulations");
+    }
+  }, []);
+
   // Fetch campaign data
-  const campaign = useQuery(
-    api.campaigns.queries.getCampaignById,
-    { campaignId: campaignId as Id<"campaigns"> }
-  );
+  const campaign = useQuery(api.campaigns.queries.getCampaignById, {
+    campaignId: campaignId as Id<"campaigns">,
+  });
 
   const campaignPermissions = useQuery(
     api.campaigns.queries.getUserCampaignPermissions,
@@ -49,10 +60,15 @@ const CampaignDetailPage = () => {
   );
 
   // Mutations
-  const updateCampaignStatus = useMutation(api.campaigns.mutations.updateCampaignStatus);
+  const updateCampaignStatus = useMutation(
+    api.campaigns.mutations.updateCampaignStatus
+  );
   const deleteCampaign = useMutation(api.campaigns.mutations.deleteCampaign);
 
-  const handleStatusChange = async (campaignId: Id<"campaigns">, newStatus: CampaignStatus) => {
+  const handleStatusChange = async (
+    campaignId: Id<"campaigns">,
+    newStatus: CampaignStatus
+  ) => {
     try {
       await updateCampaignStatus({ campaignId, status: newStatus });
       toast.success("Campaign status updated successfully");
@@ -62,8 +78,15 @@ const CampaignDetailPage = () => {
     }
   };
 
-  const handleDeleteCampaign = async (campaignId: Id<"campaigns">, campaignName: string) => {
-    if (!confirm(`Are you sure you want to delete "${campaignName}"? This action cannot be undone.`)) {
+  const handleDeleteCampaign = async (
+    campaignId: Id<"campaigns">,
+    campaignName: string
+  ) => {
+    if (
+      !confirm(
+        `Are you sure you want to delete "${campaignName}"? This action cannot be undone.`
+      )
+    ) {
       return;
     }
 
@@ -111,16 +134,24 @@ const CampaignDetailPage = () => {
                 </Link>
                 <div>
                   <div className="flex items-center gap-3 mb-2">
-                    <h1 className="text-3xl font-bold text-foreground">{campaign.name}</h1>
+                    <h1 className="text-3xl font-bold text-foreground">
+                      {campaign.name}
+                    </h1>
                     <CampaignStatusBadge status={campaign.status} />
                     <Badge variant="outline" className="capitalize">
                       {campaign.category}
                     </Badge>
                   </div>
-                  <p className="text-muted-foreground">{campaign.description}</p>
+                  <p className="text-muted-foreground">
+                    {campaign.description}
+                  </p>
                 </div>
               </div>
               <div className="flex items-center gap-2">
+                <SimulationTrigger
+                  campaign={campaign}
+                  showQuickActions={true}
+                />
                 {campaignPermissions?.canEdit && (
                   <Link href={`/campaigns/${campaignId}/edit`}>
                     <Button variant="outline">
@@ -165,7 +196,11 @@ const CampaignDetailPage = () => {
                     <div>
                       <p className="text-sm text-muted-foreground">Duration</p>
                       <p className="text-2xl font-bold">
-                        {Math.ceil((campaign.endDate - campaign.startDate) / (1000 * 60 * 60 * 24))} days
+                        {Math.ceil(
+                          (campaign.endDate - campaign.startDate) /
+                            (1000 * 60 * 60 * 24)
+                        )}{" "}
+                        days
                       </p>
                     </div>
                   </div>
@@ -179,8 +214,12 @@ const CampaignDetailPage = () => {
                       <Users className="h-5 w-5 text-green-600" />
                     </div>
                     <div>
-                      <p className="text-sm text-muted-foreground">Team Members</p>
-                      <p className="text-2xl font-bold">{campaign.teamMembers.length}</p>
+                      <p className="text-sm text-muted-foreground">
+                        Team Members
+                      </p>
+                      <p className="text-2xl font-bold">
+                        {campaign.teamMembers.length}
+                      </p>
                     </div>
                   </div>
                 </CardContent>
@@ -194,7 +233,9 @@ const CampaignDetailPage = () => {
                     </div>
                     <div>
                       <p className="text-sm text-muted-foreground">KPIs</p>
-                      <p className="text-2xl font-bold">{campaign.kpis.length}</p>
+                      <p className="text-2xl font-bold">
+                        {campaign.kpis.length}
+                      </p>
                     </div>
                   </div>
                 </CardContent>
@@ -203,20 +244,36 @@ const CampaignDetailPage = () => {
 
             {/* Campaign Details Tabs */}
             <Tabs value={activeTab} onValueChange={setActiveTab}>
-              <TabsList className="grid w-full grid-cols-4">
-                <TabsTrigger value="overview" className="flex items-center gap-2">
+              <TabsList className="grid w-full grid-cols-5">
+                <TabsTrigger
+                  value="overview"
+                  className="flex items-center gap-2"
+                >
                   <BarChart3 className="h-4 w-4" />
                   Overview
+                </TabsTrigger>
+                <TabsTrigger
+                  value="simulations"
+                  className="flex items-center gap-2"
+                >
+                  <Brain className="h-4 w-4" />
+                  AI Simulations
                 </TabsTrigger>
                 <TabsTrigger value="team" className="flex items-center gap-2">
                   <Users className="h-4 w-4" />
                   Team & Access
                 </TabsTrigger>
-                <TabsTrigger value="metrics" className="flex items-center gap-2">
+                <TabsTrigger
+                  value="metrics"
+                  className="flex items-center gap-2"
+                >
                   <Target className="h-4 w-4" />
                   Metrics & KPIs
                 </TabsTrigger>
-                <TabsTrigger value="settings" className="flex items-center gap-2">
+                <TabsTrigger
+                  value="settings"
+                  className="flex items-center gap-2"
+                >
                   <Settings className="h-4 w-4" />
                   Settings
                 </TabsTrigger>
@@ -226,9 +283,16 @@ const CampaignDetailPage = () => {
                 <CampaignOverview campaign={campaign} />
               </TabsContent>
 
+              <TabsContent value="simulations" className="mt-6">
+                <SimulationHistory
+                  campaignId={campaign._id}
+                  showHeader={true}
+                />
+              </TabsContent>
+
               <TabsContent value="team" className="mt-6">
-                <CampaignTeamManagement 
-                  campaign={campaign} 
+                <CampaignTeamManagement
+                  campaign={campaign}
                   permissions={campaignPermissions}
                 />
               </TabsContent>
@@ -238,8 +302,8 @@ const CampaignDetailPage = () => {
               </TabsContent>
 
               <TabsContent value="settings" className="mt-6">
-                <CampaignSettings 
-                  campaign={campaign} 
+                <CampaignSettings
+                  campaign={campaign}
                   permissions={campaignPermissions}
                 />
               </TabsContent>
@@ -256,20 +320,36 @@ const CampaignDetailPage = () => {
                     <h4 className="font-medium mb-2">Timeline</h4>
                     <div className="space-y-2 text-sm">
                       <div className="flex justify-between">
-                        <span className="text-muted-foreground">Start Date:</span>
-                        <span>{new Date(campaign.startDate).toLocaleDateString()}</span>
+                        <span className="text-muted-foreground">
+                          Start Date:
+                        </span>
+                        <span>
+                          {new Date(campaign.startDate).toLocaleDateString()}
+                        </span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-muted-foreground">End Date:</span>
-                        <span>{new Date(campaign.endDate).toLocaleDateString()}</span>
+                        <span>
+                          {new Date(campaign.endDate).toLocaleDateString()}
+                        </span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-muted-foreground">Created:</span>
-                        <span>{formatDistanceToNow(new Date(campaign.createdAt), { addSuffix: true })}</span>
+                        <span>
+                          {formatDistanceToNow(new Date(campaign.createdAt), {
+                            addSuffix: true,
+                          })}
+                        </span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-muted-foreground">Last Updated:</span>
-                        <span>{formatDistanceToNow(new Date(campaign.updatedAt), { addSuffix: true })}</span>
+                        <span className="text-muted-foreground">
+                          Last Updated:
+                        </span>
+                        <span>
+                          {formatDistanceToNow(new Date(campaign.updatedAt), {
+                            addSuffix: true,
+                          })}
+                        </span>
                       </div>
                     </div>
                   </div>
@@ -284,15 +364,25 @@ const CampaignDetailPage = () => {
                       </div>
                       <div className="flex justify-between">
                         <span className="text-muted-foreground">Channels:</span>
-                        <span>{campaign.channels.filter((c: any) => c.enabled).length} active</span>
+                        <span>
+                          {
+                            campaign.channels.filter((c: any) => c.enabled)
+                              .length
+                          }{" "}
+                          active
+                        </span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-muted-foreground">Audiences:</span>
+                        <span className="text-muted-foreground">
+                          Audiences:
+                        </span>
                         <span>{campaign.audiences.length} segments</span>
                       </div>
                       {campaign.importSource && (
                         <div className="flex justify-between">
-                          <span className="text-muted-foreground">Imported from:</span>
+                          <span className="text-muted-foreground">
+                            Imported from:
+                          </span>
                           <Badge variant="secondary" className="capitalize">
                             {campaign.importSource.platform}
                           </Badge>

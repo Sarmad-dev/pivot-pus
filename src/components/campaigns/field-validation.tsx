@@ -147,13 +147,13 @@ export function FieldValidation({
   const getValidationIcon = (status: string) => {
     switch (status) {
       case "validating":
-        return <Loader2 className="h-4 w-4 animate-spin text-blue-500" />;
+        return <Loader2 className="h-4 w-4 animate-spin text-blue-600" />;
       case "success":
-        return <CheckCircle className="h-4 w-4 text-green-500" />;
+        return <CheckCircle className="h-4 w-4 text-green-600" />;
       case "warning":
-        return <AlertTriangle className="h-4 w-4 text-yellow-500" />;
+        return <AlertTriangle className="h-4 w-4 text-yellow-600" />;
       case "error":
-        return <XCircle className="h-4 w-4 text-red-500" />;
+        return <XCircle className="h-4 w-4 text-red-600" />;
       default:
         return null;
     }
@@ -237,23 +237,23 @@ export function FieldValidation({
                 key={index}
                 className={cn(
                   "py-2 px-3",
-                  msg.severity === "error" && "border-red-200 bg-red-50",
+                  msg.severity === "error" && "border-red-300 bg-red-100",
                   msg.severity === "warning" &&
-                    "border-yellow-200 bg-yellow-50",
-                  msg.severity === "info" && "border-blue-200 bg-blue-50"
+                    "border-yellow-300 bg-yellow-100",
+                  msg.severity === "info" && "border-blue-300 bg-blue-100"
                 )}
               >
                 <div className="flex items-start gap-2">
                   {msg.severity === "error" && (
-                    <XCircle className="h-4 w-4 text-red-500 mt-0.5" />
+                    <XCircle className="h-4 w-4 text-red-600 mt-0.5" />
                   )}
                   {msg.severity === "warning" && (
-                    <AlertTriangle className="h-4 w-4 text-yellow-500 mt-0.5" />
+                    <AlertTriangle className="h-4 w-4 text-yellow-600 mt-0.5" />
                   )}
                   {msg.severity === "info" && (
-                    <Info className="h-4 w-4 text-blue-500 mt-0.5" />
+                    <Info className="h-4 w-4 text-blue-600 mt-0.5" />
                   )}
-                  <AlertDescription className="text-sm">
+                  <AlertDescription className="text-sm text-gray-800">
                     {msg.message}
                   </AlertDescription>
                 </div>
@@ -266,15 +266,15 @@ export function FieldValidation({
         {validationState.results &&
           Object.values(validationState.results).some((r) => r.suggestion) && (
             <div className="mt-2">
-              <Alert className="border-blue-200 bg-blue-50">
-                <Info className="h-4 w-4 text-blue-500" />
-                <AlertDescription className="text-sm text-blue-700">
-                  <strong>Suggestions:</strong>
+              <Alert className="border-blue-300 bg-blue-100">
+                <Info className="h-4 w-4 text-blue-600" />
+                <AlertDescription className="text-sm text-blue-800">
+                  <strong className="text-blue-900">Suggestions:</strong>
                   <ul className="mt-1 space-y-1">
                     {Object.values(validationState.results)
                       .filter((r) => r.suggestion)
                       .map((result, index) => (
-                        <li key={index} className="text-xs">
+                        <li key={index} className="text-xs text-blue-700">
                           • {result.suggestion}
                         </li>
                       ))}

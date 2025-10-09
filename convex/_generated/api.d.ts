@@ -13,6 +13,7 @@ import type {
   FilterApi,
   FunctionReference,
 } from "convex/server";
+import type * as api_ from "../api.js";
 import type * as auth from "../auth.js";
 import type * as auth_helpers from "../auth_helpers.js";
 import type * as campaigns_cleanup from "../campaigns/cleanup.js";
@@ -24,6 +25,7 @@ import type * as campaigns_validation from "../campaigns/validation.js";
 import type * as campaigns_verify from "../campaigns/verify.js";
 import type * as crons from "../crons.js";
 import type * as emailService from "../emailService.js";
+import type * as externalDataSources from "../externalDataSources.js";
 import type * as http from "../http.js";
 import type * as lib_encryption from "../lib/encryption.js";
 import type * as migrations from "../migrations.js";
@@ -31,6 +33,10 @@ import type * as notifications from "../notifications.js";
 import type * as organizations from "../organizations.js";
 import type * as permissions from "../permissions.js";
 import type * as platformConnections from "../platformConnections.js";
+import type * as processingQueue from "../processingQueue.js";
+import type * as simulationCache from "../simulationCache.js";
+import type * as simulationHelpers from "../simulationHelpers.js";
+import type * as simulations from "../simulations.js";
 import type * as users from "../users.js";
 
 /**
@@ -42,6 +48,7 @@ import type * as users from "../users.js";
  * ```
  */
 declare const fullApi: ApiFromModules<{
+  api: typeof api_;
   auth: typeof auth;
   auth_helpers: typeof auth_helpers;
   "campaigns/cleanup": typeof campaigns_cleanup;
@@ -53,6 +60,7 @@ declare const fullApi: ApiFromModules<{
   "campaigns/verify": typeof campaigns_verify;
   crons: typeof crons;
   emailService: typeof emailService;
+  externalDataSources: typeof externalDataSources;
   http: typeof http;
   "lib/encryption": typeof lib_encryption;
   migrations: typeof migrations;
@@ -60,6 +68,10 @@ declare const fullApi: ApiFromModules<{
   organizations: typeof organizations;
   permissions: typeof permissions;
   platformConnections: typeof platformConnections;
+  processingQueue: typeof processingQueue;
+  simulationCache: typeof simulationCache;
+  simulationHelpers: typeof simulationHelpers;
+  simulations: typeof simulations;
   users: typeof users;
 }>;
 export declare const api: FilterApi<

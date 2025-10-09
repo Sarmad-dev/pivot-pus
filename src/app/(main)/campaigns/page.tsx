@@ -23,7 +23,15 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Plus, Search, Filter, MoreHorizontal, Eye, Edit, Trash2 } from "lucide-react";
+import {
+  Plus,
+  Search,
+  Filter,
+  MoreHorizontal,
+  Eye,
+  Edit,
+  Trash2,
+} from "lucide-react";
 import Link from "next/link";
 import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
@@ -31,15 +39,22 @@ import { useMutation } from "convex/react";
 import { CampaignStats } from "../../../components/campaigns/campaign-stats";
 import { CampaignStatusBadge } from "@/components/campaigns/campaign-status-badge";
 import { CampaignActionsMenu } from "@/components/campaigns/campaign-actions-menu";
+import { SimulationTrigger } from "@/components/simulations/SimulationTrigger";
 import { CampaignStatus, CampaignCategory } from "@/types/campaign";
 import { Id } from "../../../../convex/_generated/dataModel";
 
 const CampaignsPage = () => {
   const { currentOrganization, isLoading: orgLoading } = useOrganization();
   const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState<CampaignStatus | "all">("all");
-  const [categoryFilter, setCategoryFilter] = useState<CampaignCategory | "all">("all");
-  const [sortBy, setSortBy] = useState<"name" | "created" | "updated" | "budget">("updated");
+  const [statusFilter, setStatusFilter] = useState<CampaignStatus | "all">(
+    "all"
+  );
+  const [categoryFilter, setCategoryFilter] = useState<
+    CampaignCategory | "all"
+  >("all");
+  const [sortBy, setSortBy] = useState<
+    "name" | "created" | "updated" | "budget"
+  >("updated");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
 
   // Fetch campaigns
@@ -54,7 +69,9 @@ const CampaignsPage = () => {
   );
 
   // Mutations
-  const updateCampaignStatus = useMutation(api.campaigns.mutations.updateCampaignStatus);
+  const updateCampaignStatus = useMutation(
+    api.campaigns.mutations.updateCampaignStatus
+  );
   const deleteCampaign = useMutation(api.campaigns.mutations.deleteCampaign);
 
   // Filter and sort campaigns
@@ -75,12 +92,16 @@ const CampaignsPage = () => {
 
     // Apply status filter
     if (statusFilter !== "all") {
-      filtered = filtered.filter((campaign) => campaign.status === statusFilter);
+      filtered = filtered.filter(
+        (campaign) => campaign.status === statusFilter
+      );
     }
 
     // Apply category filter
     if (categoryFilter !== "all") {
-      filtered = filtered.filter((campaign) => campaign.category === categoryFilter);
+      filtered = filtered.filter(
+        (campaign) => campaign.category === categoryFilter
+      );
     }
 
     // Apply sorting
@@ -118,7 +139,10 @@ const CampaignsPage = () => {
     return filtered;
   }, [campaigns, searchTerm, statusFilter, categoryFilter, sortBy, sortOrder]);
 
-  const handleStatusChange = async (campaignId: Id<"campaigns">, newStatus: CampaignStatus) => {
+  const handleStatusChange = async (
+    campaignId: Id<"campaigns">,
+    newStatus: CampaignStatus
+  ) => {
     try {
       await updateCampaignStatus({ campaignId, status: newStatus });
       toast.success("Campaign status updated successfully");
@@ -128,8 +152,15 @@ const CampaignsPage = () => {
     }
   };
 
-  const handleDeleteCampaign = async (campaignId: Id<"campaigns">, campaignName: string) => {
-    if (!confirm(`Are you sure you want to delete "${campaignName}"? This action cannot be undone.`)) {
+  const handleDeleteCampaign = async (
+    campaignId: Id<"campaigns">,
+    campaignName: string
+  ) => {
+    if (
+      !confirm(
+        `Are you sure you want to delete "${campaignName}"? This action cannot be undone.`
+      )
+    ) {
       return;
     }
 
@@ -164,7 +195,9 @@ const CampaignsPage = () => {
     return (
       <div className="flex items-center justify-center h-full">
         <div className="text-center">
-          <h2 className="text-xl font-semibold mb-2">No Organization Selected</h2>
+          <h2 className="text-xl font-semibold mb-2">
+            No Organization Selected
+          </h2>
           <p className="text-muted-foreground mb-4">
             Please select an organization to view campaigns.
           </p>
@@ -182,7 +215,9 @@ const CampaignsPage = () => {
             {/* Header */}
             <div className="flex items-center justify-between mb-8">
               <div>
-                <h1 className="text-3xl font-bold text-foreground mb-2">Campaigns</h1>
+                <h1 className="text-3xl font-bold text-foreground mb-2">
+                  Campaigns
+                </h1>
                 <p className="text-muted-foreground">
                   Manage and track your marketing campaigns
                 </p>
@@ -221,7 +256,12 @@ const CampaignsPage = () => {
                       />
                     </div>
                   </div>
-                  <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as CampaignStatus | "all")}>
+                  <Select
+                    value={statusFilter}
+                    onValueChange={(value) =>
+                      setStatusFilter(value as CampaignStatus | "all")
+                    }
+                  >
                     <SelectTrigger className="w-[180px]">
                       <SelectValue placeholder="Filter by status" />
                     </SelectTrigger>
@@ -233,7 +273,12 @@ const CampaignsPage = () => {
                       <SelectItem value="completed">Completed</SelectItem>
                     </SelectContent>
                   </Select>
-                  <Select value={categoryFilter} onValueChange={(value) => setCategoryFilter(value as CampaignCategory | "all")}>
+                  <Select
+                    value={categoryFilter}
+                    onValueChange={(value) =>
+                      setCategoryFilter(value as CampaignCategory | "all")
+                    }
+                  >
                     <SelectTrigger className="w-[180px]">
                       <SelectValue placeholder="Filter by category" />
                     </SelectTrigger>
@@ -246,23 +291,38 @@ const CampaignsPage = () => {
                       <SelectItem value="mixed">Mixed</SelectItem>
                     </SelectContent>
                   </Select>
-                  <Select value={`${sortBy}-${sortOrder}`} onValueChange={(value) => {
-                    const [field, order] = value.split("-");
-                    setSortBy(field as typeof sortBy);
-                    setSortOrder(order as typeof sortOrder);
-                  }}>
+                  <Select
+                    value={`${sortBy}-${sortOrder}`}
+                    onValueChange={(value) => {
+                      const [field, order] = value.split("-");
+                      setSortBy(field as typeof sortBy);
+                      setSortOrder(order as typeof sortOrder);
+                    }}
+                  >
                     <SelectTrigger className="w-[180px]">
                       <SelectValue placeholder="Sort by" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="updated-desc">Recently Updated</SelectItem>
-                      <SelectItem value="updated-asc">Oldest Updated</SelectItem>
-                      <SelectItem value="created-desc">Recently Created</SelectItem>
-                      <SelectItem value="created-asc">Oldest Created</SelectItem>
+                      <SelectItem value="updated-desc">
+                        Recently Updated
+                      </SelectItem>
+                      <SelectItem value="updated-asc">
+                        Oldest Updated
+                      </SelectItem>
+                      <SelectItem value="created-desc">
+                        Recently Created
+                      </SelectItem>
+                      <SelectItem value="created-asc">
+                        Oldest Created
+                      </SelectItem>
                       <SelectItem value="name-asc">Name A-Z</SelectItem>
                       <SelectItem value="name-desc">Name Z-A</SelectItem>
-                      <SelectItem value="budget-desc">Budget High-Low</SelectItem>
-                      <SelectItem value="budget-asc">Budget Low-High</SelectItem>
+                      <SelectItem value="budget-desc">
+                        Budget High-Low
+                      </SelectItem>
+                      <SelectItem value="budget-asc">
+                        Budget Low-High
+                      </SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -280,10 +340,9 @@ const CampaignsPage = () => {
                 {filteredAndSortedCampaigns.length === 0 ? (
                   <div className="text-center py-8">
                     <p className="text-muted-foreground mb-4">
-                      {campaigns?.length === 0 
+                      {campaigns?.length === 0
                         ? "No campaigns found. Create your first campaign to get started."
-                        : "No campaigns match your current filters."
-                      }
+                        : "No campaigns match your current filters."}
                     </p>
                     {campaigns?.length === 0 && (
                       <Link href="/campaign/create">
@@ -305,6 +364,7 @@ const CampaignsPage = () => {
                           <TableHead>Budget</TableHead>
                           <TableHead>Start Date</TableHead>
                           <TableHead>Updated</TableHead>
+                          <TableHead>AI Simulation</TableHead>
                           <TableHead className="text-right">Actions</TableHead>
                         </TableRow>
                       </TableHeader>
@@ -313,7 +373,9 @@ const CampaignsPage = () => {
                           <TableRow key={campaign._id}>
                             <TableCell>
                               <div>
-                                <div className="font-medium">{campaign.name}</div>
+                                <div className="font-medium">
+                                  {campaign.name}
+                                </div>
                                 <div className="text-sm text-muted-foreground truncate max-w-xs">
                                   {campaign.description}
                                 </div>
@@ -328,13 +390,27 @@ const CampaignsPage = () => {
                               </Badge>
                             </TableCell>
                             <TableCell>
-                              {formatCurrency(campaign.budget, campaign.currency)}
+                              {formatCurrency(
+                                campaign.budget,
+                                campaign.currency
+                              )}
                             </TableCell>
                             <TableCell>
-                              {new Date(campaign.startDate).toLocaleDateString()}
+                              {new Date(
+                                campaign.startDate
+                              ).toLocaleDateString()}
                             </TableCell>
                             <TableCell>
-                              {formatDistanceToNow(new Date(campaign.updatedAt), { addSuffix: true })}
+                              {formatDistanceToNow(
+                                new Date(campaign.updatedAt),
+                                { addSuffix: true }
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              <SimulationTrigger
+                                campaign={campaign}
+                                size="sm"
+                              />
                             </TableCell>
                             <TableCell className="text-right">
                               <CampaignActionsMenu

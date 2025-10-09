@@ -12,48 +12,48 @@ import {
 
 export const SidebarNavigation: SidebarNavigationArray = [
   {
-    title: 'Dashboard',
-    route: '/dashboard',
-    icon: DashboardIcon
+    title: "Dashboard",
+    route: "/dashboard",
+    icon: DashboardIcon,
   },
   {
-    title: 'Campaigns',
-    route: '/campaign/create',
-    icon: CampaignIcon
+    title: "Campaigns",
+    route: "/campaigns",
+    icon: CampaignIcon,
   },
   {
-    title: 'Collaboration',
-    route: '/collaboration',
-    icon: CollaborationIcon
+    title: "Collaboration",
+    route: "/collaboration",
+    icon: CollaborationIcon,
   },
   {
-    title: 'Client View',
-    route: '/client-view',
-    icon: ClientViewIcon
+    title: "Client View",
+    route: "/client-view",
+    icon: ClientViewIcon,
   },
   {
-    title: 'Admin Panel',
-    route: '/admin-panel',
-    icon: AdminIcon
+    title: "Admin Panel",
+    route: "/admin-panel",
+    icon: AdminIcon,
   },
   {
-    title: 'Notifications',
-    route: '/notifications',
-    icon: NotificationsIcon
+    title: "Notifications",
+    route: "/notifications",
+    icon: NotificationsIcon,
   },
   {
-    title: 'Pricing',
-    route: '/pricing',
-    icon: PricingIcon
+    title: "Pricing",
+    route: "/pricing",
+    icon: PricingIcon,
   },
   {
-    title: 'Profile',
-    route: '/profile',
-    icon: ProfileIcon
+    title: "Profile",
+    route: "/profile",
+    icon: ProfileIcon,
   },
   {
-    title: 'Settings',
-    route: '/settings',
-    icon: AdminIcon
-  }
+    title: "Settings",
+    route: "/settings",
+    icon: AdminIcon,
+  },
 ];
