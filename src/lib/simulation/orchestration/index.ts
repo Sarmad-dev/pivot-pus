@@ -15,11 +15,11 @@ export type {
 
 export type {
   ScenarioGenerationOptions,
-  ScenarioFactors,
-  PerformanceTrend
+  ScenarioFactors
 } from './ScenarioGenerator';
 
 export type {
   RiskDetectionOptions,
-  RiskPattern
+  RiskPattern,
+  PerformanceTrend
 } from './RiskDetector';
