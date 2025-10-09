@@ -249,38 +249,33 @@ export const CampaignMetrics = ({ campaign }: CampaignMetricsProps) => {
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {campaign.customMetrics.map((metric, index) => {
-                const { currentValue, progress } = useMemo(() => {
-                  // Try to find matching data in simulation results or model performance
-                  let value = 0;
+                // Calculate metric values directly without useMemo inside map
+                let value = 0;
 
-                  if (latestTrajectory) {
-                    const metricKey = Object.keys(latestTrajectory.metrics).find(
-                      (key) =>
-                        key.toLowerCase().includes(metric.name.toLowerCase())
-                    );
+                if (latestTrajectory) {
+                  const metricKey = Object.keys(latestTrajectory.metrics).find(
+                    (key) =>
+                      key.toLowerCase().includes(metric.name.toLowerCase())
+                  );
 
-                    if (metricKey) {
-                      value = latestTrajectory.metrics[metricKey];
-                    }
+                  if (metricKey) {
+                    value = latestTrajectory.metrics[metricKey];
                   }
+                }
 
-                  // Fallback calculation for active campaigns
-                  if (value === 0 && campaign.status === "active") {
-                    const timeElapsed = Date.now() - campaign.startDate;
-                    const totalDuration = campaign.endDate - campaign.startDate;
-                    const progressRatio = Math.min(
-                      timeElapsed / totalDuration,
-                      1
-                    );
-                    value = Math.floor(
-                      metric.target * progressRatio * 0.6
-                    ); // Conservative estimate
-                  }
+                // Fallback calculation for active campaigns
+                if (value === 0 && campaign.status === "active") {
+                  const timeElapsed = Date.now() - campaign.startDate;
+                  const totalDuration = campaign.endDate - campaign.startDate;
+                  const progressRatio = Math.min(
+                    timeElapsed / totalDuration,
+                    1
+                  );
+                  value = Math.floor(metric.target * progressRatio * 0.6); // Conservative estimate
+                }
 
-                  const progressValue = calculateProgress(value, metric.target);
-
-                  return { currentValue: value, progress: progressValue };
-                }, [metric, latestTrajectory, campaign.status, campaign.startDate, campaign.endDate, calculateProgress]);
+                const currentValue = value;
+                const progress = calculateProgress(value, metric.target);
 
                 return (
                   <div key={index} className="p-4 border rounded-lg">
@@ -326,7 +321,7 @@ export const CampaignMetrics = ({ campaign }: CampaignMetricsProps) => {
               <div className="text-2xl font-bold text-green-600 mb-2">
                 {useMemo(() => {
                   if (campaign.kpis.length === 0) return 0;
-                  
+
                   const achievements = campaign.kpis.map((kpi) => {
                     const current = getCurrentValue(kpi);
                     return calculateProgress(current, kpi.target);
@@ -354,10 +349,7 @@ export const CampaignMetrics = ({ campaign }: CampaignMetricsProps) => {
                   }
 
                   // Calculate estimated ROI based on budget and performance
-                  if (
-                    campaign.status === "active" &&
-                    latestTrajectory
-                  ) {
+                  if (campaign.status === "active" && latestTrajectory) {
                     const conversions =
                       latestTrajectory.metrics.conversions || 0;
                     const estimatedRevenue = conversions * 50; // Assume $50 per conversion
@@ -368,7 +360,13 @@ export const CampaignMetrics = ({ campaign }: CampaignMetricsProps) => {
                   }
 
                   return "N/A";
-                }, [campaign.kpis, campaign.status, campaign.budget, latestTrajectory, getCurrentValue])}
+                }, [
+                  campaign.kpis,
+                  campaign.status,
+                  campaign.budget,
+                  latestTrajectory,
+                  getCurrentValue,
+                ])}
               </div>
               <p className="text-sm text-muted-foreground">
                 Return on Investment
@@ -400,7 +398,11 @@ export const CampaignMetrics = ({ campaign }: CampaignMetricsProps) => {
                   else if (campaign.status === "draft") healthScore -= 20;
 
                   return Math.min(Math.floor(healthScore), 100);
-                }, [simulationHistory?.analytics, modelPerformance?.accuracy, campaign.status])}
+                }, [
+                  simulationHistory?.analytics,
+                  modelPerformance?.accuracy,
+                  campaign.status,
+                ])}
                 %
               </div>
               <p className="text-sm text-muted-foreground">
