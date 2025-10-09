@@ -7,6 +7,7 @@
 
 import { Id } from "../../../../convex/_generated/dataModel";
 import { DataValidationError, ModelAPIError } from "../errors";
+import * as crypto from 'crypto';
 
 export interface APIKeyConfig {
   organizationId: Id<"organizations">;
@@ -251,8 +252,6 @@ export class APIKeyManager {
    * Encrypt API key using AES-256-GCM
    */
   private encryptAPIKey(apiKey: string): EncryptedAPIKey {
-    const crypto = require('crypto');
-    
     // Generate random salt and IV
     const salt = crypto.randomBytes(32);
     const iv = crypto.randomBytes(16);
@@ -282,17 +281,15 @@ export class APIKeyManager {
    * Decrypt API key
    */
   private decryptAPIKey(encrypted: EncryptedAPIKey): string {
-    const crypto = require('crypto');
-    
     try {
       // Parse encrypted data
       const [encryptedData, authTagHex] = encrypted.encryptedKey.split(':');
       const authTag = Buffer.from(authTagHex, 'hex');
       const salt = Buffer.from(encrypted.salt, 'hex');
-      const iv = Buffer.from(encrypted.iv, 'hex');
       
       // Derive key
       const key = crypto.pbkdf2Sync(this.encryptionKey, salt, 100000, 32, 'sha512');
+      const iv = Buffer.from(encrypted.iv, 'hex');
       
       // Create decipher
       const decipher = crypto.createDecipher('aes-256-gcm', key);
@@ -320,7 +317,7 @@ export class APIKeyManager {
   private async makeTestRequest(source: string, apiKey: string, endpoint: string): Promise<boolean> {
     try {
       let testUrl: string;
-      let headers: Record<string, string> = {
+      const headers: Record<string, string> = {
         'Content-Type': 'application/json'
       };
 
