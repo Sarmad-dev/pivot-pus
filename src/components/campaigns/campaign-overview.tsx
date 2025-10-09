@@ -11,10 +11,14 @@ import {
   Users, 
   Globe,
   TrendingUp,
-  BarChart3
+  BarChart3,
+  Brain
 } from "lucide-react";
 import { formatDistanceToNow, differenceInDays, isAfter, isBefore } from "date-fns";
 import { Campaign } from "@/types/campaign";
+import { SimulationTrigger } from "@/components/simulations/SimulationTrigger";
+import { SimulationHistory } from "@/components/simulations/SimulationHistory";
+import { RiskAlerts } from "@/components/simulations/RiskAlerts";
 
 interface CampaignOverviewProps {
   campaign: Campaign;
@@ -278,6 +282,74 @@ export const CampaignOverview = ({ campaign }: CampaignOverviewProps) => {
             </div>
           </CardContent>
         </Card>
+      </div>
+
+      {/* AI Simulation Section */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Simulation Quick Access */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Brain className="h-5 w-5" />
+              AI Performance Simulation
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                Generate predictive performance trajectories using AI models to optimize your campaign strategy.
+              </p>
+              <SimulationTrigger 
+                campaign={campaign} 
+                variant="card"
+              />
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Recent Simulations */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <TrendingUp className="h-5 w-5" />
+              Recent Simulations
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <SimulationHistory 
+              campaignId={campaign._id}
+              limit={3}
+              showHeader={false}
+              compact={true}
+            />
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Risk Alerts Section */}
+      <div className="mt-6">
+        <RiskAlerts
+          campaignId={campaign._id}
+          risks={[
+            {
+              type: 'performance_dip' as const,
+              severity: 'medium' as const,
+              probability: 0.65,
+              impact: 0.15,
+              timeframe: {
+                start: Date.now() + 2 * 24 * 60 * 60 * 1000,
+                end: Date.now() + 7 * 24 * 60 * 60 * 1000,
+              },
+              description: 'Potential CTR decline detected in upcoming week',
+              recommendations: [
+                'Consider refreshing creative assets',
+                'Test new audience segments',
+                'Adjust bidding strategy'
+              ]
+            }
+          ]}
+          compact={true}
+        />
       </div>
     </div>
   );

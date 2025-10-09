@@ -214,7 +214,7 @@ export const CampaignBasicsStep = memo(function CampaignBasicsStep() {
                       placeholder="Enter campaign name"
                       {...field}
                       className={cn(
-                        (errors.basics as any)?.name && "border-red-500"
+                        (errors.basics as any)?.name && "border-red-500 dark:border-red-400"
                       )}
                     />
                   </FieldValidation>
@@ -243,7 +243,7 @@ export const CampaignBasicsStep = memo(function CampaignBasicsStep() {
                       placeholder="Describe your campaign objectives..."
                       className={cn(
                         "min-h-[100px]",
-                        (errors.basics as any)?.description && "border-red-500"
+                        (errors.basics as any)?.description && "border-red-500 dark:border-red-400"
                       )}
                       {...field}
                     />
@@ -439,7 +439,7 @@ export const CampaignBasicsStep = memo(function CampaignBasicsStep() {
                       ]}
                     >
                       <div className="relative">
-                        <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground">
+                        <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground dark:text-muted-foreground">
                           {currencySymbol}
                         </span>
                         <Input
@@ -464,21 +464,21 @@ export const CampaignBasicsStep = memo(function CampaignBasicsStep() {
 
       {/* Step Validation Summary */}
       {stepValidation.issues.length > 0 && (
-        <Alert className="border-blue-200 bg-blue-50">
-          <AlertTriangle className="h-4 w-4 text-blue-500" />
+        <Alert className="border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-950/50">
+          <AlertTriangle className="h-4 w-4 text-blue-500 dark:text-blue-400" />
           <AlertDescription>
             <div className="space-y-2">
-              <p className="font-medium text-blue-800">
+              <p className="font-medium text-blue-800 dark:text-blue-200">
                 Step 1 Validation Status: {stepValidation.isValid ? "Valid" : "Issues Found"}
               </p>
-              <div className="text-sm text-blue-700">
+              <div className="text-sm text-blue-700 dark:text-blue-300">
                 {stepValidation.issues.filter((issue: ValidationIssue) => issue.severity === "error").length > 0 && (
                   <p>• {stepValidation.issues.filter((issue: ValidationIssue) => issue.severity === "error").length} error{stepValidation.issues.filter((issue: ValidationIssue) => issue.severity === "error").length !== 1 ? "s" : ""} must be fixed</p>
                 )}
                 {stepValidation.issues.filter((issue: ValidationIssue) => issue.severity === "warning").length > 0 && (
                   <p>• {stepValidation.issues.filter((issue: ValidationIssue) => issue.severity === "warning").length} warning{stepValidation.issues.filter((issue: ValidationIssue) => issue.severity === "warning").length !== 1 ? "s" : ""} to review</p>
                 )}
-                <p className="mt-1">
+                <p className="mt-1 text-blue-800 dark:text-blue-200">
                   {stepValidation.canProceed 
                     ? "✓ You can proceed to the next step" 
                     : "⚠ Please fix errors before proceeding"}

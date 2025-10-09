@@ -21,8 +21,8 @@ import {
   Play, 
   Pause, 
   CheckCircle,
-  FileText,
-  Activity
+  Activity,
+  Brain
 } from "lucide-react";
 import Link from "next/link";
 import { Campaign, CampaignPermissions, CampaignStatus } from "@/types/campaign";
@@ -116,6 +116,14 @@ export const CampaignActionsMenu = ({
             </DropdownMenuItem>
           </Link>
         )}
+
+        {/* AI Simulation */}
+        <Link href={`/campaigns/${campaign._id}/simulate`}>
+          <DropdownMenuItem>
+            <Brain className="h-4 w-4 mr-2" />
+            Generate AI Simulation
+          </DropdownMenuItem>
+        </Link>
 
         {/* Status Changes */}
         {perms.canEdit && availableTransitions.length > 0 && (
